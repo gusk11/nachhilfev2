@@ -74,6 +74,9 @@ export default function TeacherDashboard() {
         setSelectedStudent('');
         alert('Quiz erfolgreich hochgeladen!');
         fetchData();
+      } else {
+        const data = await res.json();
+        alert('Fehler: ' + (data.error || res.status));
       }
     } catch (err) {
       console.error('Upload error:', err);
