@@ -139,7 +139,7 @@ export default function QuizPage() {
                     onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                     className="mr-3"
                   />
-                  <span>{option}</span>
+                  <span className="text-gray-900">{option}</span>
                 </label>
               ))}
             </div>
@@ -157,7 +157,7 @@ export default function QuizPage() {
                     onChange={(e) => handleAnswerChange(q.id, e.target.value === 'true')}
                     className="mr-3"
                   />
-                  <span>{value ? 'Wahr' : 'Falsch'}</span>
+                  <span className="text-gray-900">{value ? 'Wahr' : 'Falsch'}</span>
                 </label>
               ))}
             </div>
@@ -197,6 +197,19 @@ export default function QuizPage() {
                 Weiter
               </button>
             )}
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <button
+              onClick={() => {
+                if (window.confirm('Test wirklich abbrechen? Dein Fortschritt wird nicht gespeichert.')) {
+                  router.push(`/student/${studentId}`);
+                }
+              }}
+              className="w-full text-sm text-gray-500 hover:text-red-600 py-2 transition-colors"
+            >
+              Test abbrechen
+            </button>
           </div>
         </div>
       </div>
