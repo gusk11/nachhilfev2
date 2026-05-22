@@ -96,11 +96,18 @@ export async function saveResult(
   answers: Record<string, unknown> = {}
 ) {
   const rows = await sql`
-    INSERT INTO results (student_id, quiz_id, score, answers)
-    VALUES (${studentId}, ${quizId}, ${score}, ${JSON.stringify(answers)})
+    INSERT INTO results (student_id, quiz_id, score)
+    VALUES (${studentId}, ${quizId}, ${score})
     RETURNING *
   `;
-  return rows[0];
+  const result = rows[0];
+  // answers column may not exist yet if migration hasn't run
+  try {
+    await sql`UPDATE results SET answers = ${JSON.stringify(answers)} WHERE id = ${result.id}`;
+  } catch {
+    // column doesn't exist yet — answers skipped until /api/init is called
+  }
+  return result;
 }
 
 export async function getResultDetail(resultId: number) {
