@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      const token = process.env.BLOB_READ_WRITE_TOKEN!;
-      const blob = await get(token, quiz.file_key);
-      const text = await blob.text();
+      const result = await get(quiz.file_key, { token: process.env.BLOB_READ_WRITE_TOKEN!, access: 'private' });
+      if (!result || result.statusCode !== 200 || !result.stream) throw new Error('Blob not found');
+      const text = await new Response(result.stream).text();
       const quizData = JSON.parse(text);
 
       return NextResponse.json({
