@@ -1,0 +1,45 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
+import { saveResult, getStudentResults } from '@/lib/db';
+
+export async function POST(req: NextRequest) {
+  try {
+    const token = req.cookies.get('auth_token')?.value;
+    const decoded = verifyToken(token || '');
+
+    if (!decoded || decoded.role !== 'student') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { quizId, score } = await req.json();
+
+    if (typeof quizId !== 'number' || typeof score !== 'number') {
+      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+    }
+
+    const result = await saveResult(decoded.studentId, quizId, score);
+
+    return NextResponse.json({ success: true, result });
+  } catch (error) {
+    console.error('Result save error:', error);
+    return NextResponse.json({ error: 'Save failed' }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const token = req.cookies.get('auth_token')?.value;
+    const decoded = verifyToken(token || '');
+
+    if (!decoded || decoded.role !== 'student') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const results = await getStudentResults(decoded.studentId);
+
+    return NextResponse.json({ results });
+  } catch (error) {
+    console.error('Get results error:', error);
+    return NextResponse.json({ error: 'Fetch failed' }, { status: 500 });
+  }
+}

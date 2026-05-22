@@ -1,0 +1,30 @@
+{
+  "title": "Mathematik - Kapitel 3: Gleichungen",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "Wie lautet die Lösung von 2x + 3 = 7?",
+      "type": "text",
+      "correctAnswer": "2"
+    },
+    {
+      "id": "q2",
+      "text": "Welche der folgenden Zahlen ist eine Primzahl?",
+      "type": "multiple",
+      "options": ["4", "7", "9", "15"],
+      "correctAnswer": "7"
+    },
+    {
+      "id": "q3",
+      "text": "Die Quadratwurzel von 16 ist 4.",
+      "type": "true-false",
+      "correctAnswer": true
+    },
+    {
+      "id": "q4",
+      "text": "Welche Fläche hat ein Quadrat mit Seitenlänge 5?",
+      "type": "text",
+      "correctAnswer": "25"
+    }
+  ]
+}
