@@ -13,13 +13,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { quizId, score } = await req.json();
+    const { quizId, score, answers } = await req.json();
 
     if (typeof quizId !== 'number' || typeof score !== 'number') {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
-    const result = await saveResult(decoded.studentId, quizId, score);
+    const result = await saveResult(decoded.studentId, quizId, score, answers ?? {});
 
     return NextResponse.json({ success: true, result });
   } catch (error) {

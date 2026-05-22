@@ -34,6 +34,8 @@ export async function initializeDB() {
       )
     `;
 
+    await sql`ALTER TABLE results ADD COLUMN IF NOT EXISTS answers JSONB`;
+
     console.log('Database tables initialized');
   } catch (error) {
     console.error('Database initialization error:', error);
@@ -87,11 +89,29 @@ export async function createQuiz(title: string, fileKey: string, studentId: numb
   return rows[0];
 }
 
-export async function saveResult(studentId: number, quizId: number, score: number) {
+export async function saveResult(
+  studentId: number,
+  quizId: number,
+  score: number,
+  answers: Record<string, unknown> = {}
+) {
   const rows = await sql`
-    INSERT INTO results (student_id, quiz_id, score)
-    VALUES (${studentId}, ${quizId}, ${score})
+    INSERT INTO results (student_id, quiz_id, score, answers)
+    VALUES (${studentId}, ${quizId}, ${score}, ${JSON.stringify(answers)})
     RETURNING *
+  `;
+  return rows[0];
+}
+
+export async function getResultDetail(resultId: number) {
+  const rows = await sql`
+    SELECT r.id, r.student_id, r.quiz_id, r.score, r.answers, r.completed_at,
+           q.title, q.file_key,
+           s.name AS student_name
+    FROM results r
+    JOIN quizzes q ON r.quiz_id = q.id
+    JOIN students s ON r.student_id = s.id
+    WHERE r.id = ${resultId}
   `;
   return rows[0];
 }

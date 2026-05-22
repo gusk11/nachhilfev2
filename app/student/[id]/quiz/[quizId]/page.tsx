@@ -75,7 +75,7 @@ export default function QuizPage() {
       await fetch('/api/results', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quizId: parseInt(quizId), score: finalScore }),
+        body: JSON.stringify({ quizId: parseInt(quizId), score: finalScore, answers }),
       });
     } catch (err) {
       console.error('Submit error:', err);

@@ -17,6 +17,30 @@ interface Result {
   completed_at: string;
 }
 
+interface DetailQuestion {
+  id: string;
+  text: string;
+  type: 'multiple' | 'true-false' | 'text';
+  options?: string[];
+  correctAnswer?: string | boolean;
+}
+
+interface DetailResult {
+  id: number;
+  score: number;
+  completed_at: string;
+  student_name: string;
+  quiz_title: string;
+  questions: DetailQuestion[] | null;
+  answers: Record<string, unknown> | null;
+}
+
+function formatAnswer(answer: unknown, type: string): string {
+  if (answer === undefined || answer === null) return 'Keine Antwort';
+  if (type === 'true-false') return answer ? 'Wahr' : 'Falsch';
+  return String(answer);
+}
+
 export default function TeacherDashboard() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
@@ -26,6 +50,8 @@ export default function TeacherDashboard() {
   const [quizTitle, setQuizTitle] = useState('');
   const [selectedStudent, setSelectedStudent] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [detailResult, setDetailResult] = useState<DetailResult | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -47,6 +73,18 @@ export default function TeacherDashboard() {
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchResultDetail = async (resultId: number) => {
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/results/${resultId}`, { credentials: 'include' });
+      if (res.ok) setDetailResult(await res.json());
+    } catch (err) {
+      console.error('Detail fetch error:', err);
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -172,6 +210,7 @@ export default function TeacherDashboard() {
 
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-2xl font-bold mb-6 text-gray-800">Ergebnisse</h2>
+              <p className="text-sm text-gray-500 mb-3">Zeile anklicken für Einzelauswertung</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-100 border-b">
@@ -184,7 +223,11 @@ export default function TeacherDashboard() {
                   </thead>
                   <tbody>
                     {results.map((r) => (
-                      <tr key={r.id} className="border-b hover:bg-gray-50">
+                      <tr
+                        key={r.id}
+                        className="border-b hover:bg-purple-50 cursor-pointer transition"
+                        onClick={() => fetchResultDetail(r.id)}
+                      >
                         <td className="px-4 py-2 text-gray-800">{r.name}</td>
                         <td className="px-4 py-2 text-gray-800">{r.title}</td>
                         <td className="px-4 py-2 text-green-600 font-semibold">
@@ -222,6 +265,81 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Detail-Modal */}
+      {(detailLoading || detailResult) && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setDetailResult(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {detailLoading ? (
+              <div className="flex items-center justify-center py-16 text-gray-500">
+                Lädt Details...
+              </div>
+            ) : detailResult && (
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800">{detailResult.quiz_title}</h2>
+                    <p className="text-gray-500 text-sm">{detailResult.student_name}</p>
+                  </div>
+                  <button
+                    onClick={() => setDetailResult(null)}
+                    className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                  <span className="text-4xl font-bold text-green-600">
+                    {Number(detailResult.score).toFixed(1)}%
+                  </span>
+                  <span className="text-gray-500 text-sm">
+                    {new Date(detailResult.completed_at).toLocaleDateString('de-DE')}
+                  </span>
+                </div>
+
+                {!detailResult.questions || !detailResult.answers ? (
+                  <p className="text-gray-400 text-sm text-center py-4">
+                    Keine Einzelauswertung verfügbar (Test vor Update absolviert)
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {detailResult.questions.map((q, i) => {
+                      const studentAnswer = detailResult.answers![q.id];
+                      const isCorrect = studentAnswer === q.correctAnswer;
+                      return (
+                        <div
+                          key={q.id}
+                          className={`p-4 rounded-lg border-l-4 ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-400 bg-red-50'}`}
+                        >
+                          <p className="font-medium text-gray-800 mb-2">
+                            {i + 1}. {q.text}
+                          </p>
+                          <p className={`text-sm ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                            Antwort: {formatAnswer(studentAnswer, q.type)}
+                            {isCorrect ? ' ✓' : ''}
+                          </p>
+                          {!isCorrect && (
+                            <p className="text-sm text-green-700 mt-1">
+                              Richtig: {formatAnswer(q.correctAnswer, q.type)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
