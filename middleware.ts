@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from './lib/auth';
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
@@ -10,25 +9,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protected student routes
-  if (pathname.startsWith('/student/')) {
+  // Protected routes - einfach nur checken ob Token existiert
+  if (pathname.startsWith('/student/') || pathname.startsWith('/lehrer/dashboard')) {
     if (!token) {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'student') {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-  }
-
-  // Protected teacher routes
-  if (pathname.startsWith('/lehrer/dashboard')) {
-    if (!token) {
-      return NextResponse.redirect(new URL('/lehrer', request.url));
-    }
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'teacher') {
-      return NextResponse.redirect(new URL('/lehrer', request.url));
+      const loginUrl = pathname.startsWith('/student') ? '/' : '/lehrer';
+      return NextResponse.redirect(new URL(loginUrl, request.url));
     }
   }
 
