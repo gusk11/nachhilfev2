@@ -4,10 +4,11 @@ import { get } from '@vercel/blob';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { quizId: string } }
+  { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
-    const quizId = parseInt(params.quizId);
+    const { quizId: quizIdStr } = await params;
+    const quizId = parseInt(quizIdStr);
     const quiz = await getQuiz(quizId);
 
     if (!quiz) {
