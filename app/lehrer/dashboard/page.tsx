@@ -52,6 +52,9 @@ export default function TeacherDashboard() {
   const [uploading, setUploading] = useState(false);
   const [detailResult, setDetailResult] = useState<DetailResult | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [pinModal, setPinModal] = useState<{ id: number; name: string } | null>(null);
+  const [newPin, setNewPin] = useState('');
+  const [pinSaving, setPinSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -85,6 +88,45 @@ export default function TeacherDashboard() {
       console.error('Detail fetch error:', err);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (id: number, name: string) => {
+    if (!confirm(`Schüler "${name}" wirklich löschen? Alle Ergebnisse werden ebenfalls gelöscht.`)) return;
+    try {
+      const res = await fetch(`/api/students/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) fetchData();
+      else alert('Fehler beim Löschen');
+    } catch {
+      alert('Netzwerkfehler');
+    }
+  };
+
+  const handleSavePin = async () => {
+    if (!pinModal || !newPin.trim()) return;
+    setPinSaving(true);
+    try {
+      const res = await fetch(`/api/students/${pinModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ pin: newPin.trim() }),
+      });
+      if (res.ok) {
+        setPinModal(null);
+        setNewPin('');
+        alert(`PIN für "${pinModal.name}" erfolgreich geändert`);
+      } else {
+        const data = await res.json();
+        alert('Fehler: ' + (data.error || 'Unbekannt'));
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setPinSaving(false);
     }
   };
 
@@ -253,9 +295,23 @@ export default function TeacherDashboard() {
               {students.map((s) => (
                 <div key={s.id} className="p-3 bg-gray-50 rounded-lg">
                   <p className="font-semibold text-gray-800">{s.name}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 mb-2">
                     Seit {new Date(s.created_at).toLocaleDateString('de-DE')}
                   </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setPinModal({ id: s.id, name: s.name }); setNewPin(''); }}
+                      className="flex-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition"
+                    >
+                      PIN ändern
+                    </button>
+                    <button
+                      onClick={() => handleDeleteStudent(s.id, s.name)}
+                      className="flex-1 text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 transition"
+                    >
+                      Löschen
+                    </button>
+                  </div>
                 </div>
               ))}
               {students.length === 0 && (
@@ -265,6 +321,53 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </div>
+
+      {/* PIN-Modal */}
+      {pinModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setPinModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">PIN ändern</h2>
+              <button onClick={() => setPinModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Neue PIN für <span className="font-semibold">{pinModal.name}</span>
+            </p>
+            <input
+              type="text"
+              value={newPin}
+              onChange={(e) => setNewPin(e.target.value)}
+              placeholder="Neue PIN eingeben"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4"
+              autoFocus
+            />
+            <p className="text-xs text-gray-400 mb-4">
+              PINs sind verschlüsselt gespeichert — die alte PIN kann nicht eingesehen werden.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPinModal(null)}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleSavePin}
+                disabled={!newPin.trim() || pinSaving}
+                className="flex-1 bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600 disabled:opacity-50"
+              >
+                {pinSaving ? 'Speichert...' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail-Modal */}
       {(detailLoading || detailResult) && (

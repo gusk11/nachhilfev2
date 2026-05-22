@@ -133,6 +133,14 @@ export async function getStudentResults(studentId: number) {
   return rows;
 }
 
+export async function deleteStudent(id: number) {
+  await sql`DELETE FROM students WHERE id = ${id}`;
+}
+
+export async function updateStudentPin(id: number, pinHash: string, pinSalt: string) {
+  await sql`UPDATE students SET pin_hash = ${pinHash}, pin_salt = ${pinSalt} WHERE id = ${id}`;
+}
+
 export async function getAllResults() {
   const rows = await sql`
     SELECT r.*, s.name, q.title FROM results r
