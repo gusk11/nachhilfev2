@@ -33,15 +33,16 @@ export default function TeacherDashboard() {
 
   const fetchData = async () => {
     try {
-      const studentsRes = await fetch('/api/students');
-      const resultsRes = await fetch('/api/results/all');
+      const studentsRes = await fetch('/api/students', { credentials: 'include' });
+      const resultsRes = await fetch('/api/results/all', { credentials: 'include' });
 
-      if (studentsRes.ok && resultsRes.ok) {
-        setStudents(await studentsRes.json());
-        setResults(await resultsRes.json());
-      } else {
+      if (studentsRes.status === 401) {
         router.push('/lehrer');
+        return;
       }
+
+      if (studentsRes.ok) setStudents(await studentsRes.json());
+      if (resultsRes.ok) setResults(await resultsRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
