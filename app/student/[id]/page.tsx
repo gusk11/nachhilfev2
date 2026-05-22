@@ -97,13 +97,13 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm">
+    <div className="min-h-screen bg-[#eef3fb]">
+      <nav className="bg-[#032e65] shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Mein Dashboard</h1>
+          <h1 className="text-2xl font-bold text-white">📊 Mein Dashboard</h1>
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+            className="bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 font-medium"
           >
             Abmelden
           </button>
@@ -113,14 +113,14 @@ export default function StudentDashboard() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Verfügbare Quizzes</h2>
+            <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📝 Verfügbare Quizzes</h2>
             <div className="space-y-3">
               {quizzes.length > 0 ? (
                 quizzes.map((quiz) => (
                   <Link
                     key={quiz.id}
                     href={`/student/${studentId}/quiz/${quiz.id}`}
-                    className="block p-4 bg-white rounded-lg shadow hover:shadow-md transition border-l-4 border-blue-500"
+                    className="block p-4 bg-white rounded-lg shadow hover:shadow-md transition border-l-4 border-[#032e65]"
                   >
                     <h3 className="font-semibold text-gray-800">{quiz.title}</h3>
                     <p className="text-sm text-gray-500">
@@ -135,7 +135,7 @@ export default function StudentDashboard() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Ergebnisse</h2>
+            <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📈 Ergebnisse</h2>
             <p className="text-sm text-gray-500 mb-3">Karte anklicken für Einzelauswertung</p>
             <div className="space-y-3">
               {results.length > 0 ? (

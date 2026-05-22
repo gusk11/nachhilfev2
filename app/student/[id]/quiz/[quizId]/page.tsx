@@ -87,13 +87,14 @@ export default function QuizPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full text-center">
-          <h1 className="text-4xl font-bold text-green-600 mb-4">{score}%</h1>
-          <p className="text-xl text-gray-800 mb-6">Quiz abgeschlossen!</p>
+      <div className="min-h-screen bg-[#032e65] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+          <div className="text-5xl mb-4">🎉</div>
+          <h1 className="text-5xl font-bold text-[#032e65] mb-2">{score}%</h1>
+          <p className="text-xl text-gray-600 mb-6">Quiz abgeschlossen!</p>
           <button
             onClick={() => router.push(`/student/${studentId}`)}
-            className="w-full bg-blue-500 text-white py-2 rounded-lg font-medium hover:bg-blue-600"
+            className="w-full bg-[#032e65] text-white py-3 rounded-lg font-medium hover:bg-[#021d40] transition"
           >
             Zurück zum Dashboard
           </button>
@@ -107,7 +108,7 @@ export default function QuizPage() {
   const progress = Math.round(((currentQuestion + 1) / quiz.questions.length) * 100);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
+    <div className="min-h-screen bg-[#eef3fb] p-4">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <h1 className="text-2xl font-bold mb-4 text-gray-800">{quiz.title}</h1>
@@ -118,7 +119,7 @@ export default function QuizPage() {
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-blue-500 h-2 rounded-full transition-all"
+                className="bg-[#032e65] h-2 rounded-full transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -129,7 +130,7 @@ export default function QuizPage() {
           {q.type === 'multiple' && (
             <div className="space-y-3 mb-6">
               {q.options?.map((option) => (
-                <label key={option} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50">
+                <label key={option} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-[#eef3fb]">
                   <input
                     type="radio"
                     name="answer"
@@ -147,7 +148,7 @@ export default function QuizPage() {
           {q.type === 'true-false' && (
             <div className="space-y-3 mb-6">
               {[true, false].map((value) => (
-                <label key={String(value)} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50">
+                <label key={String(value)} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-[#eef3fb]">
                   <input
                     type="radio"
                     name="answer"
@@ -168,7 +169,7 @@ export default function QuizPage() {
               value={answers[q.id] || ''}
               onChange={(e) => handleAnswerChange(q.id, e.target.value)}
               placeholder="Deine Antwort"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] mb-6"
             />
           )}
 
@@ -191,7 +192,7 @@ export default function QuizPage() {
             ) : (
               <button
                 onClick={() => setCurrentQuestion(currentQuestion + 1)}
-                className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600"
+                className="flex-1 bg-[#1565c0] text-white py-2 rounded-lg hover:bg-[#0d47a1]"
               >
                 Weiter
               </button>

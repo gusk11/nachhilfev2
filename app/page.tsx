@@ -25,52 +25,51 @@ export default function StudentLogin() {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || 'Login failed');
+        setError(data.error || 'Login fehlgeschlagen');
         return;
       }
 
       const data = await res.json();
       router.push(`/student/${data.studentId}`);
-    } catch (err) {
-      setError('Network error');
+    } catch {
+      setError('Netzwerkfehler');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-        <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">
-          Nachhilfe – Next Level
-        </h1>
-        <p className="text-center text-gray-600 mb-6">Schüler-Login</p>
+    <div className="min-h-screen bg-[#032e65] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-2">📐✏️</div>
+          <h1 className="text-3xl font-bold text-[#032e65]">
+            Nachhilfe – Next Level
+          </h1>
+          <p className="text-gray-500 mt-1 text-sm">∑ ∫ √ π — Schüler-Login</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Dein Name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              PIN
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">PIN</label>
             <input
               type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="Deine PIN"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
               required
             />
           </div>
@@ -83,8 +82,8 @@ export default function StudentLogin() {
               onClick={() => setMode('login')}
               className={`flex-1 py-2 rounded-lg font-medium transition ${
                 mode === 'login'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                  ? 'bg-[#032e65] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               Login
@@ -94,8 +93,8 @@ export default function StudentLogin() {
               onClick={() => setMode('register')}
               className={`flex-1 py-2 rounded-lg font-medium transition ${
                 mode === 'register'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                  ? 'bg-[#032e65] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               Registrieren
@@ -105,19 +104,19 @@ export default function StudentLogin() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-500 text-white py-2 rounded-lg font-medium hover:bg-blue-600 transition disabled:opacity-50"
+            className="w-full bg-[#032e65] text-white py-2 rounded-lg font-medium hover:bg-[#021d40] transition disabled:opacity-50"
           >
             {loading ? 'Wird angemeldet...' : 'Anmelden'}
           </button>
         </form>
 
         <div className="mt-6 pt-6 border-t">
-          <p className="text-center text-gray-600 text-sm mb-3">Lehrer-Bereich:</p>
+          <p className="text-center text-gray-500 text-sm mb-3">Lehrer-Bereich:</p>
           <a
             href="/lehrer"
-            className="block w-full text-center bg-purple-500 text-white py-2 rounded-lg font-medium hover:bg-purple-600 transition"
+            className="block w-full text-center bg-[#eef3fb] text-[#032e65] border border-[#032e65] py-2 rounded-lg font-medium hover:bg-[#032e65] hover:text-white transition"
           >
-            Zum Lehrer-Login
+            🏫 Zum Lehrer-Login
           </a>
         </div>
       </div>

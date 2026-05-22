@@ -176,13 +176,13 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm">
+    <div className="min-h-screen bg-[#eef3fb]">
+      <nav className="bg-[#032e65] shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Lehrer-Dashboard</h1>
+          <h1 className="text-2xl font-bold text-white">🎓 Lehrer-Dashboard</h1>
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+            className="bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 font-medium"
           >
             Abmelden
           </button>
@@ -193,7 +193,7 @@ export default function TeacherDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-              <h2 className="text-2xl font-bold mb-6 text-gray-800">Quiz hochladen</h2>
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📤 Quiz hochladen</h2>
               <form onSubmit={handleFileUpload} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -204,7 +204,7 @@ export default function TeacherDashboard() {
                     value={quizTitle}
                     onChange={(e) => setQuizTitle(e.target.value)}
                     placeholder="z.B. Mathematik - Kapitel 3"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
                     required
                   />
                 </div>
@@ -229,7 +229,7 @@ export default function TeacherDashboard() {
                   <select
                     value={selectedStudent}
                     onChange={(e) => setSelectedStudent(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
                   >
                     <option value="">Für alle Schüler</option>
                     {students.map((s) => (
@@ -243,7 +243,7 @@ export default function TeacherDashboard() {
                 <button
                   type="submit"
                   disabled={uploading || !file || !quizTitle}
-                  className="w-full bg-purple-500 text-white py-2 rounded-lg font-medium hover:bg-purple-600 transition disabled:opacity-50"
+                  className="w-full bg-[#032e65] text-white py-2 rounded-lg font-medium hover:bg-[#021d40] transition disabled:opacity-50"
                 >
                   {uploading ? 'Wird hochgeladen...' : 'Quiz hochladen'}
                 </button>
@@ -251,11 +251,11 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold mb-6 text-gray-800">Ergebnisse</h2>
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📊 Ergebnisse</h2>
               <p className="text-sm text-gray-500 mb-3">Zeile anklicken für Einzelauswertung</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-100 border-b">
+                  <thead className="bg-[#eef3fb] border-b">
                     <tr>
                       <th className="px-4 py-2 text-left font-semibold text-gray-700">Schüler</th>
                       <th className="px-4 py-2 text-left font-semibold text-gray-700">Quiz</th>
@@ -267,7 +267,7 @@ export default function TeacherDashboard() {
                     {results.map((r) => (
                       <tr
                         key={r.id}
-                        className="border-b hover:bg-purple-50 cursor-pointer transition"
+                        className="border-b hover:bg-[#eef3fb] cursor-pointer transition"
                         onClick={() => fetchResultDetail(r.id)}
                       >
                         <td className="px-4 py-2 text-gray-800">{r.name}</td>
@@ -290,10 +290,10 @@ export default function TeacherDashboard() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Registrierte Schüler</h2>
+            <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👥 Registrierte Schüler</h2>
             <div className="space-y-2">
               {students.map((s) => (
-                <div key={s.id} className="p-3 bg-gray-50 rounded-lg">
+                <div key={s.id} className="p-3 bg-[#eef3fb] rounded-lg border border-[#dce8f7]">
                   <p className="font-semibold text-gray-800">{s.name}</p>
                   <p className="text-sm text-gray-500 mb-2">
                     Seit {new Date(s.created_at).toLocaleDateString('de-DE')}
@@ -301,7 +301,7 @@ export default function TeacherDashboard() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setPinModal({ id: s.id, name: s.name }); setNewPin(''); }}
-                      className="flex-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition"
+                      className="flex-1 text-xs bg-[#032e65] text-white px-2 py-1 rounded hover:bg-[#021d40] transition"
                     >
                       PIN ändern
                     </button>
@@ -344,7 +344,7 @@ export default function TeacherDashboard() {
               value={newPin}
               onChange={(e) => setNewPin(e.target.value)}
               placeholder="Neue PIN eingeben"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] mb-4"
               autoFocus
             />
             <p className="text-xs text-gray-400 mb-4">
@@ -360,7 +360,7 @@ export default function TeacherDashboard() {
               <button
                 onClick={handleSavePin}
                 disabled={!newPin.trim() || pinSaving}
-                className="flex-1 bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600 disabled:opacity-50"
+                className="flex-1 bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50"
               >
                 {pinSaving ? 'Speichert...' : 'Speichern'}
               </button>
