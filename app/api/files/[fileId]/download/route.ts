@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { getStudentFile } from '@/lib/db';
-import { getStudentFileStream } from '@/lib/blob';
 
 export async function GET(
   req: NextRequest,
@@ -22,16 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const result = await getStudentFileStream(file.file_key);
-    if (!result) return NextResponse.json({ error: 'Datei nicht verfügbar' }, { status: 404 });
-
-    return new Response(result.stream, {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="${encodeURIComponent(file.filename)}"`,
-        'Cache-Control': 'private, max-age=3600',
-      },
-    });
+    return NextResponse.redirect(file.file_key);
   } catch (error) {
     console.error('Download error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
