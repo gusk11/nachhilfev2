@@ -16,7 +16,8 @@ export async function GET(
     }
 
     try {
-      const blob = await get(quiz.file_key);
+      const token = process.env.BLOB_READ_WRITE_TOKEN!;
+      const blob = await get(token, quiz.file_key);
       const text = await blob.text();
       const quizData = JSON.parse(text);
 
