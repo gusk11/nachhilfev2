@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { saveResult, getStudentResults } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
-    const token = req.cookies.get('auth_token')?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
     const decoded = verifyToken(token || '');
 
     if (!decoded || decoded.role !== 'student') {
@@ -28,7 +30,8 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const token = req.cookies.get('auth_token')?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
     const decoded = verifyToken(token || '');
 
     if (!decoded || decoded.role !== 'student') {

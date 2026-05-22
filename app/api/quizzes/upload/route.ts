@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { createQuiz } from '@/lib/db';
 import { put } from '@vercel/blob';
 
 export async function POST(req: NextRequest) {
   try {
-    const token = req.cookies.get('auth_token')?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
     const decoded = verifyToken(token || '');
 
     if (!decoded || decoded.role !== 'teacher') {
