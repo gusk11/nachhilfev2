@@ -109,7 +109,7 @@ export default function StudentDashboard() {
                     <h3 className="font-semibold text-gray-800">{result.title}</h3>
                     <div className="flex justify-between items-center mt-2">
                       <span className="text-2xl font-bold text-green-600">
-                        {result.score.toFixed(1)}%
+                        {Number(result.score).toFixed(1)}%
                       </span>
                       <span className="text-sm text-gray-500">
                         {new Date(result.completed_at).toLocaleDateString('de-DE')}
