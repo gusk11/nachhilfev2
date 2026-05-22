@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getQuiz } from '@/lib/db';
-import { get } from '@vercel/blob';
 
 export async function GET(
   req: NextRequest,
@@ -16,20 +15,12 @@ export async function GET(
     }
 
     try {
-      const result = await get(quiz.file_key, { token: process.env.BLOB_READ_WRITE_TOKEN!, access: 'private' });
-      if (!result || result.statusCode !== 200 || !result.stream) throw new Error('Blob not found');
-      const text = await new Response(result.stream).text();
+      const res = await fetch(quiz.file_key);
+      const text = await res.text();
       const quizData = JSON.parse(text);
-
-      return NextResponse.json({
-        title: quiz.title,
-        questions: quizData.questions,
-      });
+      return NextResponse.json({ title: quiz.title, questions: quizData.questions });
     } catch {
-      return NextResponse.json({
-        title: quiz.title,
-        questions: [],
-      });
+      return NextResponse.json({ title: quiz.title, questions: [] });
     }
   } catch (error) {
     console.error('Get quiz error:', error);

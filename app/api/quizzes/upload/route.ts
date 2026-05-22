@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const buffer = await file.arrayBuffer();
     const fileKey = `quizzes/${Date.now()}-${file.name}`;
 
-    await put(fileKey, buffer, { access: 'private' });
+    await put(fileKey, buffer, { access: 'public' });
 
     const quiz = await createQuiz(title, fileKey, studentId ? parseInt(studentId as string) : null);
 
