@@ -37,7 +37,10 @@ export default function QuizPage() {
     try {
       const res = await fetch(`/api/quizzes/${quizId}`);
       if (res.ok) {
-        setQuiz(await res.json());
+        const data = await res.json();
+        if (data.questions?.length > 0) {
+          setQuiz(data);
+        }
       }
     } catch (err) {
       console.error('Fetch error:', err);
