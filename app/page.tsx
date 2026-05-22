@@ -42,11 +42,9 @@ export default function StudentLogin() {
     <div className="min-h-screen bg-[#032e65] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
         <div className="text-center mb-6">
-          <div className="text-4xl mb-2">📐✏️</div>
-          <h1 className="text-3xl font-bold text-[#032e65]">
-            Nachhilfe – Next Level
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm">∑ ∫ √ π — Schüler-Login</p>
+          <img src="/logo.png" alt="Nachhilfe Next LVL" className="w-28 h-28 mx-auto mb-3 object-contain" />
+          <h1 className="text-3xl font-bold text-[#032e65]">Nachhilfe Next LVL</h1>
+          <p className="text-gray-500 mt-1 text-sm">Schüler-Login</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
