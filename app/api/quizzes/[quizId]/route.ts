@@ -16,10 +16,9 @@ export async function GET(
     }
 
     try {
-      const blobMeta = await get(quiz.file_key, { token: process.env.BLOB_READ_WRITE_TOKEN! });
-      if (!blobMeta) throw new Error('Blob not found');
-      const res = await fetch(blobMeta.url);
-      const text = await res.text();
+      const result = await get(quiz.file_key, { token: process.env.BLOB_READ_WRITE_TOKEN!, access: 'private' });
+      if (!result || result.statusCode !== 200 || !result.stream) throw new Error('Blob not found');
+      const text = await new Response(result.stream).text();
       const quizData = JSON.parse(text);
 
       return NextResponse.json({
