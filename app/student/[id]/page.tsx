@@ -131,7 +131,9 @@ export default function StudentDashboard() {
       <nav className="bg-[#032e65] shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
+            <div className="bg-white rounded-full p-1 flex items-center justify-center">
+              <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />
+            </div>
             <h1 className="text-2xl font-bold text-white">Mein Dashboard</h1>
           </div>
           <button
