@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { generatePINHash, verifyPIN, generateStudentToken } from '@/lib/auth';
 import { getStudentByName, createStudent } from '@/lib/db';
 
@@ -25,9 +26,10 @@ export async function POST(req: NextRequest) {
     }
 
     const token = generateStudentToken(student.id);
-    const response = NextResponse.json({ success: true, studentId: student.id });
-    response.cookies.set('auth_token', token, { httpOnly: true, maxAge: 86400 });
-    return response;
+    const cookieStore = await cookies();
+    cookieStore.set('auth_token', token, { httpOnly: true, maxAge: 86400, path: '/' });
+
+    return NextResponse.json({ success: true, studentId: student.id });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
