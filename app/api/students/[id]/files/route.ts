@@ -42,18 +42,22 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let step = 'auth';
   try {
     const decoded = await getAuth();
     if (!decoded || decoded.role !== 'teacher') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    step = 'params';
     const { id } = await params;
     const studentId = parseInt(id);
 
+    step = 'getStudent';
     const student = await getStudent(studentId);
     if (!student) return NextResponse.json({ error: 'Schüler nicht gefunden' }, { status: 404 });
 
+    step = 'formData';
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     if (!file) return NextResponse.json({ error: 'Keine Datei' }, { status: 400 });
@@ -61,11 +65,14 @@ export async function POST(
       return NextResponse.json({ error: 'Nur PDF-Dateien erlaubt' }, { status: 400 });
     }
 
+    step = 'blobUpload';
     const fileKey = await uploadStudentFile(file, studentId, file.name);
+
+    step = 'dbInsert';
     const record = await createStudentFile(studentId, file.name, fileKey);
     return NextResponse.json(record, { status: 201 });
   } catch (error) {
-    console.error('Upload file error:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error('Upload file error at step', step, error);
+    return NextResponse.json({ error: `Fehler bei Schritt "${step}": ${String(error)}` }, { status: 500 });
   }
 }
