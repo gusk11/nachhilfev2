@@ -16,9 +16,10 @@ export async function GET(
     }
 
     try {
-      const token = process.env.BLOB_READ_WRITE_TOKEN!;
-      const blob = await get(token, quiz.file_key);
-      const text = await blob.text();
+      const blobMeta = await get(quiz.file_key, { token: process.env.BLOB_READ_WRITE_TOKEN! });
+      if (!blobMeta) throw new Error('Blob not found');
+      const res = await fetch(blobMeta.url);
+      const text = await res.text();
       const quizData = JSON.parse(text);
 
       return NextResponse.json({
