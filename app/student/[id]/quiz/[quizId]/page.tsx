@@ -103,6 +103,7 @@ export default function QuizPage() {
   }
 
   const q = quiz.questions[currentQuestion];
+  if (!q) return <div className="flex justify-center items-center h-screen text-gray-600">Frage konnte nicht geladen werden.</div>;
   const progress = Math.round(((currentQuestion + 1) / quiz.questions.length) * 100);
 
   return (
