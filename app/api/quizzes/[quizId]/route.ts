@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { list } from '@vercel/blob';
 import { getQuiz } from '@/lib/db';
 
 interface RawQuestion {
@@ -42,7 +43,15 @@ export async function GET(
     }
 
     try {
-      const res = await fetch(quiz.file_key);
+      // file_key is a full URL for new uploads; a relative path for legacy entries
+      let fetchUrl = quiz.file_key;
+      if (!fetchUrl.startsWith('http')) {
+        const { blobs } = await list({ prefix: fetchUrl, limit: 1 });
+        if (blobs.length === 0) throw new Error(`Blob not found for path: ${fetchUrl}`);
+        fetchUrl = blobs[0].url;
+      }
+
+      const res = await fetch(fetchUrl);
       if (!res.ok) throw new Error(`Blob fetch failed: ${res.status}`);
       const text = await res.text();
       const quizData = JSON.parse(text);
