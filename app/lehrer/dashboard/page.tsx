@@ -188,7 +188,7 @@ export default function TeacherDashboard() {
                         <td className="px-4 py-2 text-gray-800">{r.name}</td>
                         <td className="px-4 py-2 text-gray-800">{r.title}</td>
                         <td className="px-4 py-2 text-green-600 font-semibold">
-                          {r.score.toFixed(1)}%
+                          {Number(r.score).toFixed(1)}%
                         </td>
                         <td className="px-4 py-2 text-gray-600">
                           {new Date(r.completed_at).toLocaleDateString('de-DE')}
