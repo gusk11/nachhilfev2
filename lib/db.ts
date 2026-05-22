@@ -66,7 +66,9 @@ export async function createStudent(name: string, pinHash: string, pinSalt: stri
 
 export async function getStudentQuizzes(studentId: number) {
   const rows = await sql`
-    SELECT * FROM quizzes WHERE student_id = ${studentId} ORDER BY uploaded_at DESC
+    SELECT * FROM quizzes
+    WHERE student_id = ${studentId} OR student_id IS NULL
+    ORDER BY uploaded_at DESC
   `;
   return rows;
 }
