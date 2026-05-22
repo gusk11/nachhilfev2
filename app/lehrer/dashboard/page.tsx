@@ -17,6 +17,14 @@ interface Result {
   completed_at: string;
 }
 
+interface StudentFile {
+  id: number;
+  filename: string;
+  uploaded_at: string;
+  seen: boolean;
+  completed: boolean;
+}
+
 interface DetailQuestion {
   id: string;
   text: string;
@@ -56,6 +64,13 @@ export default function TeacherDashboard() {
   const [newPin, setNewPin] = useState('');
   const [pinSaving, setPinSaving] = useState(false);
 
+  // Dateien-Modal
+  const [filesModal, setFilesModal] = useState<{ id: number; name: string } | null>(null);
+  const [studentFiles, setStudentFiles] = useState<StudentFile[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfUploading, setPdfUploading] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -88,6 +103,65 @@ export default function TeacherDashboard() {
       console.error('Detail fetch error:', err);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const openFilesModal = async (student: Student) => {
+    setFilesModal({ id: student.id, name: student.name });
+    setPdfFile(null);
+    setFilesLoading(true);
+    try {
+      const res = await fetch(`/api/students/${student.id}/files`, { credentials: 'include' });
+      if (res.ok) setStudentFiles(await res.json());
+    } catch (err) {
+      console.error('Files fetch error:', err);
+    } finally {
+      setFilesLoading(false);
+    }
+  };
+
+  const handlePdfUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pdfFile || !filesModal) return;
+    setPdfUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', pdfFile);
+      const res = await fetch(`/api/students/${filesModal.id}/files`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setPdfFile(null);
+        const updated = await fetch(`/api/students/${filesModal.id}/files`, { credentials: 'include' });
+        if (updated.ok) setStudentFiles(await updated.json());
+      } else {
+        const data = await res.json();
+        alert('Fehler: ' + (data.error || res.status));
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setPdfUploading(false);
+    }
+  };
+
+  const handleDeleteFile = async (fileId: number) => {
+    if (!filesModal) return;
+    if (!confirm('Datei wirklich löschen?')) return;
+    try {
+      const res = await fetch(`/api/students/${filesModal.id}/files/${fileId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setStudentFiles((prev) => prev.filter((f) => f.id !== fileId));
+      } else {
+        alert('Fehler beim Löschen');
+      }
+    } catch {
+      alert('Netzwerkfehler');
     }
   };
 
@@ -298,7 +372,13 @@ export default function TeacherDashboard() {
                   <p className="text-sm text-gray-500 mb-2">
                     Seit {new Date(s.created_at).toLocaleDateString('de-DE')}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => openFilesModal(s)}
+                      className="flex-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
+                    >
+                      📎 Dateien
+                    </button>
                     <button
                       onClick={() => { setPinModal({ id: s.id, name: s.name }); setNewPin(''); }}
                       className="flex-1 text-xs bg-[#032e65] text-white px-2 py-1 rounded hover:bg-[#021d40] transition"
@@ -321,6 +401,88 @@ export default function TeacherDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Dateien-Modal */}
+      {filesModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setFilesModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-xl font-bold text-[#032e65]">
+                  📎 Dateien für {filesModal.name}
+                </h2>
+                <button onClick={() => setFilesModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+              </div>
+
+              {/* Upload-Formular */}
+              <form onSubmit={handlePdfUpload} className="flex gap-2 mb-6">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+                  className="flex-1 text-sm px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={pdfUploading || !pdfFile}
+                  className="bg-[#032e65] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#021d40] disabled:opacity-50 whitespace-nowrap"
+                >
+                  {pdfUploading ? '...' : 'PDF hochladen'}
+                </button>
+              </form>
+
+              {/* Dateiliste */}
+              {filesLoading ? (
+                <p className="text-gray-500 text-sm text-center py-4">Lädt...</p>
+              ) : studentFiles.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-4">Noch keine Dateien hinterlegt</p>
+              ) : (
+                <div className="space-y-2">
+                  {studentFiles.map((f) => (
+                    <div key={f.id} className="flex items-center gap-3 p-3 bg-[#eef3fb] rounded-lg border border-[#dce8f7]">
+                      <span className="text-red-500 text-lg flex-shrink-0">📄</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{f.filename}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(f.uploaded_at).toLocaleDateString('de-DE')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span
+                          title="Gesehen"
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${f.seen ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}
+                        >
+                          {f.seen ? '👁 Gesehen' : '👁 –'}
+                        </span>
+                        <span
+                          title="Erledigt"
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${f.completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}
+                        >
+                          {f.completed ? '✓ Erledigt' : '✓ –'}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteFile(f.id)}
+                          className="text-red-400 hover:text-red-600 text-sm ml-1"
+                          title="Löschen"
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PIN-Modal */}
       {pinModal && (

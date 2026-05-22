@@ -19,6 +19,14 @@ interface Result {
   completed_at: string;
 }
 
+interface StudentFile {
+  id: number;
+  filename: string;
+  uploaded_at: string;
+  seen: boolean;
+  completed: boolean;
+}
+
 interface DetailQuestion {
   id: string;
   text: string;
@@ -48,6 +56,7 @@ export default function StudentDashboard() {
   const router = useRouter();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [results, setResults] = useState<Result[]>([]);
+  const [files, setFiles] = useState<StudentFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailResult, setDetailResult] = useState<DetailResult | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -58,16 +67,21 @@ export default function StudentDashboard() {
 
   const fetchData = async () => {
     try {
-      const quizzesRes = await fetch(`/api/quizzes/student/${studentId}`);
-      const resultsRes = await fetch('/api/results');
+      const [quizzesRes, resultsRes, filesRes] = await Promise.all([
+        fetch(`/api/quizzes/student/${studentId}`),
+        fetch('/api/results'),
+        fetch(`/api/students/${studentId}/files`),
+      ]);
 
-      if (quizzesRes.ok && resultsRes.ok) {
-        setQuizzes(await quizzesRes.json());
-        const { results } = await resultsRes.json();
-        setResults(results);
-      } else {
+      if (!quizzesRes.ok || !resultsRes.ok) {
         router.push('/');
+        return;
       }
+
+      setQuizzes(await quizzesRes.json());
+      const { results } = await resultsRes.json();
+      setResults(results);
+      if (filesRes.ok) setFiles(await filesRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -84,6 +98,22 @@ export default function StudentDashboard() {
       console.error('Detail fetch error:', err);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const updateFileStatus = async (fileId: number, seen: boolean, completed: boolean) => {
+    setFiles((prev) =>
+      prev.map((f) => (f.id === fileId ? { ...f, seen, completed } : f))
+    );
+    try {
+      await fetch(`/api/files/${fileId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seen, completed }),
+      });
+    } catch {
+      // revert on error
+      fetchData();
     }
   };
 
@@ -110,7 +140,7 @@ export default function StudentDashboard() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📝 Verfügbare Quizzes</h2>
@@ -162,6 +192,65 @@ export default function StudentDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Dateien-Sektion */}
+        {files.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📎 Verfügbare Dateien</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {files.map((f) => (
+                <div
+                  key={f.id}
+                  className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <span className="text-2xl flex-shrink-0">📄</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 text-sm leading-tight break-words">
+                        {f.filename}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(f.uploaded_at).toLocaleDateString('de-DE')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`/api/files/${f.id}/download`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center text-xs bg-[#032e65] text-white py-1.5 rounded-lg hover:bg-[#021d40] transition mb-3"
+                  >
+                    PDF öffnen
+                  </a>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => updateFileStatus(f.id, !f.seen, f.completed)}
+                      className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${
+                        f.seen
+                          ? 'bg-blue-100 border-blue-300 text-blue-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-blue-50'
+                      }`}
+                    >
+                      {f.seen ? '👁 Gesehen ✓' : '👁 Gesehen'}
+                    </button>
+                    <button
+                      onClick={() => updateFileStatus(f.id, f.seen || true, !f.completed)}
+                      className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${
+                        f.completed
+                          ? 'bg-green-100 border-green-300 text-green-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-green-50'
+                      }`}
+                    >
+                      {f.completed ? '✓ Erledigt ✓' : '✓ Erledigt'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail-Modal */}
