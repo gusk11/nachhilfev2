@@ -740,26 +740,30 @@ export default function TeacherDashboard() {
                     {lessons.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((lesson: any) => {
                       const lessonKey = `${dateStr}-${lesson.studentId}`;
                       const selectedActivity = completedSessions.get(lessonKey);
-                      const isCompleted = !!selectedActivity;
+                      const activityCount = selectedActivity?.size || 0;
+                      const isFullyCompleted = activityCount === ACTIVITY_TYPES.length;
+                      const isPartiallyCompleted = activityCount > 0 && activityCount < ACTIVITY_TYPES.length;
                       const isPast = isPastLesson(dateStr, lesson.startTime);
 
                       return (
                         <div key={lessonKey} className="space-y-2">
                           <div
                             className={`flex items-center justify-between p-3 rounded-lg border ${
-                              isCompleted
+                              isFullyCompleted
                                 ? 'bg-green-50 border-green-300'
-                                : lesson.isChanged
+                                : isPartiallyCompleted
                                 ? 'bg-orange-50 border-orange-300'
-                                : 'bg-orange-50 border-orange-300'
+                                : 'bg-red-50 border-red-300'
                             }`}
                           >
                             <div>
-                              <p className={`font-semibold text-sm ${isCompleted ? 'text-green-700' : 'text-gray-800'}`}>
-                                {isCompleted && '✓ '}{lesson.studentName}
+                              <p className={`font-semibold text-sm ${
+                                isFullyCompleted ? 'text-green-700' : isPartiallyCompleted ? 'text-orange-700' : 'text-gray-800'
+                              }`}>
+                                {isFullyCompleted && '✓ '}{lesson.studentName}
                               </p>
                               <p className={`text-sm ${
-                                isCompleted ? 'text-green-600 font-medium' : lesson.isChanged ? 'text-orange-600 font-medium' : 'text-orange-600 font-medium'
+                                isFullyCompleted ? 'text-green-600 font-medium' : isPartiallyCompleted ? 'text-orange-600 font-medium' : 'text-red-600 font-medium'
                               }`}>
                                 {lesson.startTime} Uhr · {lesson.durationMinutes} Min.
                                 {lesson.isChanged && <span className="ml-1 text-xs">(Standard: {lesson.standardTime})</span>}
@@ -781,12 +785,14 @@ export default function TeacherDashboard() {
                                   setSelectedActivities(new Set(completedSessions.get(lessonKey) || []));
                                 }}
                                 className={`text-xs px-3 py-1.5 rounded-lg transition font-medium ${
-                                  isCompleted
+                                  isFullyCompleted
                                     ? 'bg-green-500 text-white hover:bg-green-600'
-                                    : 'bg-orange-500 text-white hover:bg-orange-600'
+                                    : isPartiallyCompleted
+                                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                                    : 'bg-red-500 text-white hover:bg-red-600'
                                 }`}
                               >
-                                {isCompleted ? '✓ Erledigt' : 'Erledigt'}
+                                {isFullyCompleted ? '✓ Erledigt' : `${activityCount}/${ACTIVITY_TYPES.length}`}
                               </button>
                             </div>
                           </div>
