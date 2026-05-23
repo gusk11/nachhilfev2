@@ -83,6 +83,7 @@ export default function TeacherDashboard() {
     studentId: number; studentName: string; date: string;
     standardTime: string; standardDuration: number; sessionId: number | null;
     existingTime: string; existingDuration: string; existingNotes: string;
+    standardDayOfWeek: number;
   } | null>(null);
   const [sessTime, setSessTime] = useState('');
   const [sessDuration, setSessDuration] = useState('');
@@ -154,6 +155,7 @@ export default function TeacherDashboard() {
             durationMinutes: sess?.duration_minutes || sc.duration_minutes,
             standardTime: sc.start_time,
             standardDuration: sc.duration_minutes,
+            standardDayOfWeek: sc.day_of_week,
             notes: sess?.notes || null,
             isChanged: !!(sess?.start_time && sess.start_time !== sc.start_time),
             sessionId: sess?.id || null,
@@ -301,6 +303,7 @@ export default function TeacherDashboard() {
       studentId: lesson.studentId, studentName: lesson.studentName,
       date: lesson.dateStr, standardTime: lesson.standardTime,
       standardDuration: lesson.standardDuration, sessionId: lesson.sessionId,
+      standardDayOfWeek: lesson.standardDayOfWeek,
       existingTime: lesson.isChanged ? lesson.startTime : '',
       existingDuration: lesson.sessionId && lesson.durationMinutes !== lesson.standardDuration ? String(lesson.durationMinutes) : '',
       existingNotes: lesson.notes || '',
@@ -830,17 +833,30 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Datums-Kalender – alle 14 Tage */}
+              {/* Datums-Kalender – flexibles Fenster basierend auf Standard-Wochentag */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">📅 Datum wählen – nächste 2 Wochen</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">📅 Datum wählen – diese und nächste Woche</label>
                 <div className="grid grid-cols-7 gap-1">
                   {(() => {
                     const pad = (n: number) => String(n).padStart(2, '0');
                     const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-                    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+                    // Parse current date
+                    const [year, month, day] = sessionModal.date.split('-').map(Number);
+                    const currentDate = new Date(year, month - 1, day);
+                    currentDate.setHours(0, 0, 0, 0);
+
+                    // Calculate date range: Monday of this week to Friday of next week
+                    // (relative to the standard day of week)
+                    const daysToMondayBack = sessionModal.standardDayOfWeek - 1; // Monday = 1
+                    const startDate = new Date(currentDate);
+                    startDate.setDate(currentDate.getDate() - daysToMondayBack);
+
+                    const endDate = new Date(currentDate);
+                    endDate.setDate(currentDate.getDate() + (12 - sessionModal.standardDayOfWeek));
+
                     const days = [];
-                    for (let i = 0; i < 14; i++) {
-                      const d = new Date(today); d.setDate(today.getDate() + i);
+                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
                       const dateStr = localDateStr(d);
                       const dow = d.getDay();
                       const dayName = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][dow];
