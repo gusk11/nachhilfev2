@@ -287,6 +287,7 @@ export default function StudentDashboard() {
                 <p className="text-gray-500">Noch keine Quizzes verfügbar</p>
               )}
             </div>
+            </div>
           )}
 
           {openSections.results && (
@@ -315,6 +316,7 @@ export default function StudentDashboard() {
               ) : (
                 <p className="text-gray-500">Noch keine Ergebnisse</p>
               )}
+            </div>
             </div>
           )}
 
@@ -429,6 +431,7 @@ export default function StudentDashboard() {
               ))}
             </div>
             )}
+            </div>
           )}
         </div>
       </div>

@@ -638,6 +638,7 @@ export default function TeacherDashboard() {
                 <p className="text-gray-500">Noch keine Schüler registriert</p>
               )}
             </div>
+            </div>
           )}
 
           {openSections.schedule && (
