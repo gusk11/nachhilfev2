@@ -376,6 +376,7 @@ export default function TeacherDashboard() {
   };
 
   const handleDeleteSession = async (id: number) => {
+    if (!confirm('Diese Änderung wirklich löschen und zur Grundstunde zurücksetzen?')) return;
     await fetch(`/api/lesson-sessions/${id}`, { method: 'DELETE', credentials: 'include' });
     setSessionModal(null);
     fetchData();
