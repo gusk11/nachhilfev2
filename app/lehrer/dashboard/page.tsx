@@ -174,72 +174,124 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Kalender: letzte 2 Tage + nächste 14 Tage mit Stunden (regulär + Extrastunden)
+  // Kalender: Alle Stunden mit Lessons pro Tag
+  const getAllLessonsForDate = (dateStr: string) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const normSessionDate = (v: any) => typeof v === 'string' ? v.slice(0, 10) : String(v).slice(0, 10);
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const d = new Date(year, month - 1, day);
+    const dow = d.getDay();
+    const lessons: any[] = [];
+
+    // 1. Reguläre Stunden
+    schedules
+      .filter((sc: any) => sc.day_of_week === dow)
+      .forEach((sc: any) => {
+        const sess = sessions.find((s: any) =>
+          s.student_id === sc.student_id &&
+          normSessionDate(s.lesson_date) === dateStr
+        );
+        lessons.push({
+          studentId: sc.student_id,
+          studentName: sc.student_name,
+          startTime: sess?.start_time || sc.start_time,
+          durationMinutes: sess?.duration_minutes || sc.duration_minutes,
+          standardTime: sc.start_time,
+          standardDuration: sc.duration_minutes,
+          standardDayOfWeek: sc.day_of_week,
+          notes: sess?.notes || null,
+          isChanged: !!(sess?.start_time && sess.start_time !== sc.start_time),
+          sessionId: sess?.id || null,
+          isExtra: false,
+          dateStr,
+        });
+      });
+
+    // 2. Extrastunden
+    sessions
+      .filter((s: any) => normSessionDate(s.lesson_date) === dateStr)
+      .forEach((s: any) => {
+        const isRegular = schedules.some((sc: any) =>
+          sc.student_id === s.student_id && sc.day_of_week === dow
+        );
+        if (!isRegular) {
+          const student = students.find((st: any) => st.id === s.student_id);
+          lessons.push({
+            studentId: s.student_id,
+            studentName: student?.name || 'Unbekannt',
+            startTime: s.start_time || '??:??',
+            durationMinutes: s.duration_minutes || 0,
+            standardTime: undefined,
+            standardDuration: undefined,
+            standardDayOfWeek: undefined,
+            notes: s.notes || null,
+            isChanged: false,
+            sessionId: s.id,
+            isExtra: true,
+            dateStr,
+          });
+        }
+      });
+
+    return lessons.sort((a, b) => a.startTime.localeCompare(b.startTime));
+  };
+
+  // Kalender-Grid: 4 Wochen (letzte 2 Tage + nächste 28 Tage)
+  const calendarGrid = (() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const weeks: { startDate: Date; days: { dateStr: string; dayNum: number; lessons: any[]; isToday: boolean; isOtherMonth: boolean }[] }[] = [];
+
+    // Starte 2 Tage vorher
+    let current = new Date(today);
+    current.setDate(current.getDate() - 2);
+    const startMonday = new Date(current);
+    startMonday.setDate(startMonday.getDate() - (startMonday.getDay() === 0 ? 6 : startMonday.getDay() - 1));
+
+    // Generiere 4 volle Wochen
+    for (let week = 0; week < 4; week++) {
+      const weekDays: any[] = [];
+      for (let dow = 0; dow < 7; dow++) {
+        const d = new Date(startMonday);
+        d.setDate(d.getDate() + week * 7 + dow);
+        const dateStr = localDateStr(d);
+        const isToday = d.getTime() === today.getTime();
+        const isOtherMonth = d.getMonth() !== today.getMonth() && week === 0;
+        const lessons = getAllLessonsForDate(dateStr);
+
+        weekDays.push({
+          dateStr,
+          dayNum: d.getDate(),
+          lessons,
+          isToday,
+          isOtherMonth,
+        });
+      }
+      weeks.push({
+        startDate: new Date(startMonday),
+        days: weekDays,
+      });
+      startMonday.setDate(startMonday.getDate() + 7);
+    }
+
+    return weeks;
+  })();
+
+  // Alte Struktur für Kompatibilität
   const calendarDays = (() => {
     const pad = (n: number) => String(n).padStart(2, '0');
     const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    const normSessionDate = (v: any) => typeof v === 'string' ? v.slice(0, 10) : String(v).slice(0, 10);
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const result: { dateStr: string; label: string; lessons: any[] }[] = [];
 
     for (let i = -2; i < 14; i++) {
       const d = new Date(today); d.setDate(today.getDate() + i);
-      const dow = d.getDay();
       const dateStr = localDateStr(d);
       const label = d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' });
-      const lessons: any[] = [];
-
-      // 1. Reguläre Stunden (aus Stundenplan)
-      schedules
-        .filter((sc: any) => sc.day_of_week === dow)
-        .forEach((sc: any) => {
-          const sess = sessions.find((s: any) =>
-            s.student_id === sc.student_id &&
-            normSessionDate(s.lesson_date) === dateStr
-          );
-          lessons.push({
-            studentId: sc.student_id,
-            studentName: sc.student_name,
-            startTime: sess?.start_time || sc.start_time,
-            durationMinutes: sess?.duration_minutes || sc.duration_minutes,
-            standardTime: sc.start_time,
-            standardDuration: sc.duration_minutes,
-            standardDayOfWeek: sc.day_of_week,
-            notes: sess?.notes || null,
-            isChanged: !!(sess?.start_time && sess.start_time !== sc.start_time),
-            sessionId: sess?.id || null,
-            isExtra: false,
-            dateStr,
-          });
-        });
-
-      // 2. Extrastunden (in sessions, aber nicht in schedules)
-      sessions
-        .filter((s: any) => normSessionDate(s.lesson_date) === dateStr)
-        .forEach((s: any) => {
-          const isRegular = schedules.some((sc: any) =>
-            sc.student_id === s.student_id && sc.day_of_week === dow
-          );
-          if (!isRegular) {
-            const student = students.find((st: any) => st.id === s.student_id);
-            lessons.push({
-              studentId: s.student_id,
-              studentName: student?.name || 'Unbekannt',
-              startTime: s.start_time || '??:??',
-              durationMinutes: s.duration_minutes || 0,
-              standardTime: undefined,
-              standardDuration: undefined,
-              standardDayOfWeek: undefined,
-              notes: s.notes || null,
-              isChanged: false,
-              sessionId: s.id,
-              isExtra: true,
-              dateStr,
-            });
-          }
-        });
-
+      const lessons = getAllLessonsForDate(dateStr);
       result.push({ dateStr, label, lessons });
     }
     return result;
@@ -864,7 +916,106 @@ export default function TeacherDashboard() {
                 style={{ overflow: "hidden" }}
                 className="bg-white rounded-lg shadow-lg p-6"
               >
-              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – nächste 2 Wochen</h2>
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – Kalender-Übersicht</h2>
+
+              {/* Kalender-Grid */}
+              <div className="space-y-6">
+                {calendarGrid.map((week, weekIdx) => {
+                  const monthYear = week.startDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+                  const weekStart = week.startDate.getDate();
+                  const weekEnd = week.days[week.days.length - 1].dayNum;
+
+                  return (
+                    <div key={weekIdx}>
+                      <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">
+                        {monthYear} · Woche {weekStart}-{weekEnd}
+                      </p>
+
+                      {/* 7er Grid: Mo-So */}
+                      <div className="grid grid-cols-7 gap-2">
+                        {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((dayName, idx) => {
+                          const day = week.days[idx];
+                          const hasLessons = day.lessons.length > 0;
+
+                          return (
+                            <div
+                              key={day.dateStr}
+                              className={`rounded-lg border-2 p-3 min-h-[180px] flex flex-col ${
+                                day.isToday
+                                  ? 'border-blue-500 bg-blue-50'
+                                  : day.isOtherMonth
+                                  ? 'border-gray-200 bg-gray-50'
+                                  : hasLessons
+                                  ? 'border-indigo-300 bg-indigo-50'
+                                  : 'border-gray-200 bg-white'
+                              }`}
+                            >
+                              {/* Datum-Header */}
+                              <div className="pb-2 border-b border-gray-300 mb-2">
+                                <p className="text-xs font-semibold text-gray-500 uppercase">{dayName}</p>
+                                <p className={`text-lg font-bold ${
+                                  day.isToday ? 'text-blue-600' : 'text-gray-800'
+                                }`}>
+                                  {day.dayNum}
+                                </p>
+                              </div>
+
+                              {/* Lektionen */}
+                              <div className="flex-1 space-y-1 overflow-y-auto text-xs">
+                                {hasLessons ? (
+                                  day.lessons.map((lesson: any, idx) => (
+                                    <button
+                                      key={idx}
+                                      onClick={() => openSessionModal(lesson)}
+                                      className={`w-full text-left p-1.5 rounded text-xs truncate font-medium transition hover:shadow-md ${
+                                        lesson.isExtra
+                                          ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                                          : 'bg-blue-100 text-blue-700 border border-blue-300'
+                                      }`}
+                                      title={`${lesson.studentName} ${lesson.startTime} (${lesson.durationMinutes}min)`}
+                                    >
+                                      <span className="text-xs">{lesson.startTime}</span>
+                                      <br />
+                                      <span className="text-[10px] opacity-90 truncate">{lesson.studentName}</span>
+                                      {lesson.isExtra && <span className="text-[9px]"> ⭐</span>}
+                                    </button>
+                                  ))
+                                ) : (
+                                  <p className="text-gray-400 text-center py-2">—</p>
+                                )}
+                              </div>
+
+                              {/* Add Extra Button */}
+                              <button
+                                onClick={() => setExtraSessionModal({ studentId: 0, studentName: '', date: day.dateStr })}
+                                className="mt-2 text-[10px] w-full text-indigo-600 hover:bg-indigo-100 px-1 py-1 rounded transition font-semibold"
+                              >
+                                ➕
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Alte Zeilen-View (optional für Referenz) */}
+          <AnimatePresence>
+            {openSections.schedule && false && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – nächste 2 Wochen (Zeilen-Ansicht)</h2>
         {calendarDays.length === 0 ? (
           <p className="text-gray-500 text-sm">Noch keine Grundstunden eingetragen. Klicke bei einem Schüler auf <strong>⏰ Stunde</strong>.</p>
         ) : (
