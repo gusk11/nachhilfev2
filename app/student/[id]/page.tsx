@@ -243,15 +243,6 @@ export default function StudentDashboard() {
         {/* Accordion Navigation - Glass Style */}
         <div className="mb-8 space-y-3">
             <GlassButton
-              emoji="👤"
-              label="Meine Informationen"
-              isOpen={openSection === 'info'}
-              onClick={() => toggleSection('info')}
-            >
-              Meine Informationen
-            </GlassButton>
-
-            <GlassButton
               emoji="📝"
               label="Verfügbare Quizzes"
               isOpen={openSection === 'quizzes'}
@@ -290,65 +281,6 @@ export default function StudentDashboard() {
 
         {/* Content Sections */}
         <div className="space-y-8">
-          <AnimatePresence>
-            {openSection === 'info' && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
-              >
-              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👤 Meine Informationen</h2>
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                setSavingInfo(true);
-                try {
-                  const res = await fetch(`/api/students/${studentId}/info`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ class: studentClass, subject: studentSubject }),
-                  });
-                  if (res.ok) alert('Informationen gespeichert!');
-                } catch (err) {
-                  console.error(err);
-                } finally {
-                  setSavingInfo(false);
-                }
-              }} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Aktuelle Klasse</label>
-                  <input
-                    type="text"
-                    value={studentClass}
-                    onChange={(e) => setStudentClass(e.target.value)}
-                    placeholder="z.B. 8a, 10b"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Fach</label>
-                  <input
-                    type="text"
-                    value={studentSubject}
-                    onChange={(e) => setStudentSubject(e.target.value)}
-                    placeholder="z.B. Mathematik, Englisch"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={savingInfo}
-                  className="bg-[#032e65] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#021d40] disabled:opacity-50 transition"
-                >
-                  {savingInfo ? 'Speichert...' : 'Speichern'}
-                </button>
-              </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           <AnimatePresence>
             {openSection === 'quizzes' && (
               <motion.div

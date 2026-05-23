@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { deleteLessonSession, updateLessonSession } from '@/lib/db';
+import { deleteLessonSession, updateLessonSession, upsertLessonSession } from '@/lib/db';
 
 async function requireTeacher() {
   const cookieStore = await cookies();

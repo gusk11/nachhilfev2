@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { getResultDetail } from '@/lib/db';
+import { getResultDetail, deleteResult } from '@/lib/db';
 import { list } from '@vercel/blob';
 
 interface RawQuestion {
@@ -90,6 +90,33 @@ export async function GET(
     }
   } catch (error) {
     console.error('Get result detail error:', error);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    const decoded = verifyToken(token || '');
+
+    if (!decoded || decoded.role !== 'teacher') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const resultId = parseInt(id);
+    if (isNaN(resultId)) {
+      return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+    }
+
+    await deleteResult(resultId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete result error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

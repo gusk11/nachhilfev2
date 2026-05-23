@@ -7,7 +7,6 @@ export default function StudentLogin() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
-  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,7 +19,7 @@ export default function StudentLogin() {
       const res = await fetch('/api/auth/student/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, pin, mode }),
+        body: JSON.stringify({ name, pin, mode: 'login' }),
       });
 
       if (!res.ok) {
@@ -73,31 +72,6 @@ export default function StudentLogin() {
           </div>
 
           {error && <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setMode('login')}
-              className={`flex-1 py-2 rounded-lg font-medium transition ${
-                mode === 'login'
-                  ? 'bg-[#032e65] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Login
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('register')}
-              className={`flex-1 py-2 rounded-lg font-medium transition ${
-                mode === 'register'
-                  ? 'bg-[#032e65] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Registrieren
-            </button>
-          </div>
 
           <button
             type="submit"

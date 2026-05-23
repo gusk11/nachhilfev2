@@ -189,6 +189,8 @@ export default function TeacherDashboard() {
           s.student_id === sc.student_id &&
           normSessionDate(s.lesson_date) === dateStr
         );
+        // Überspringe, wenn diese Grundstunde als "cancelled" markiert ist
+        if (sess?.cancelled) return;
         lessons.push({
           studentId: sc.student_id,
           studentName: sc.student_name,
@@ -202,12 +204,13 @@ export default function TeacherDashboard() {
           sessionId: sess?.id || null,
           isExtra: false,
           dateStr,
+          theme: sess?.theme || null,
         });
       });
 
-    // 2. Extrastunden
+    // 2. Extrastunden (nur nicht-cancelled)
     sessions
-      .filter((s: any) => normSessionDate(s.lesson_date) === dateStr)
+      .filter((s: any) => normSessionDate(s.lesson_date) === dateStr && !s.cancelled)
       .forEach((s: any) => {
         const isRegular = schedules.some((sc: any) =>
           sc.student_id === s.student_id && sc.day_of_week === dow
@@ -227,6 +230,7 @@ export default function TeacherDashboard() {
             sessionId: s.id,
             isExtra: true,
             dateStr,
+            theme: s.theme || null,
           });
         }
       });
@@ -234,47 +238,35 @@ export default function TeacherDashboard() {
     return lessons.sort((a, b) => a.startTime.localeCompare(b.startTime));
   };
 
-  // Kalender-Grid: 4 Wochen (letzte 2 Tage + nächste 28 Tage)
+  // Kalender: 2 Wochen + 2 Extratage vorher, vertikal angeordnet
   const calendarGrid = (() => {
     const pad = (n: number) => String(n).padStart(2, '0');
     const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const weeks: { startDate: Date; days: { dateStr: string; dayNum: number; lessons: any[]; isToday: boolean; isOtherMonth: boolean }[] }[] = [];
+    const days: { dateStr: string; label: string; dayNum: number; lessons: any[]; isToday: boolean; dow: number }[] = [];
 
-    // Starte 2 Tage vorher
-    let current = new Date(today);
-    current.setDate(current.getDate() - 2);
-    const startMonday = new Date(current);
-    startMonday.setDate(startMonday.getDate() - (startMonday.getDay() === 0 ? 6 : startMonday.getDay() - 1));
+    // Starte 2 Tage vorher, dann die nächsten 14 Tage
+    for (let i = -2; i < 14; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const dateStr = localDateStr(d);
+      const isToday = d.getTime() === today.getTime();
+      const label = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      const lessons = getAllLessonsForDate(dateStr);
+      const dow = d.getDay();
 
-    // Generiere 4 volle Wochen
-    for (let week = 0; week < 4; week++) {
-      const weekDays: any[] = [];
-      for (let dow = 0; dow < 7; dow++) {
-        const d = new Date(startMonday);
-        d.setDate(d.getDate() + week * 7 + dow);
-        const dateStr = localDateStr(d);
-        const isToday = d.getTime() === today.getTime();
-        const isOtherMonth = d.getMonth() !== today.getMonth() && week === 0;
-        const lessons = getAllLessonsForDate(dateStr);
-
-        weekDays.push({
-          dateStr,
-          dayNum: d.getDate(),
-          lessons,
-          isToday,
-          isOtherMonth,
-        });
-      }
-      weeks.push({
-        startDate: new Date(startMonday),
-        days: weekDays,
+      days.push({
+        dateStr,
+        label,
+        dayNum: d.getDate(),
+        lessons,
+        isToday,
+        dow,
       });
-      startMonday.setDate(startMonday.getDate() + 7);
     }
 
-    return weeks;
+    return days;
   })();
 
   // Alte Struktur für Kompatibilität
@@ -304,6 +296,24 @@ export default function TeacherDashboard() {
       console.error('Detail fetch error:', err);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const handleDeleteResult = async (resultId: number) => {
+    if (!confirm('Quizergebnis wirklich löschen?')) return;
+    try {
+      const res = await fetch(`/api/results/${resultId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setDetailResult(null);
+        fetchData();
+      } else {
+        alert('Fehler beim Löschen');
+      }
+    } catch {
+      alert('Netzwerkfehler');
     }
   };
 
@@ -897,115 +907,111 @@ export default function TeacherDashboard() {
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – Kalender-Übersicht</h2>
 
               {/* Kalender-Grid */}
-              <div className="space-y-6">
-                {calendarGrid.map((week, weekIdx) => {
-                  const monthYear = week.startDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-                  const weekStart = week.startDate.getDate();
-                  const weekEnd = week.days[week.days.length - 1].dayNum;
+              <div className="space-y-3">
+                {calendarGrid.map((day, dayIdx) => {
+                  const hasLessons = day.lessons.length > 0;
 
                   return (
-                    <div key={weekIdx}>
-                      <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">
-                        {monthYear} · Woche {weekStart}-{weekEnd}
-                      </p>
-
-                      {/* 7er Grid: Mo-So */}
-                      <div className="grid grid-cols-7 gap-2">
-                        {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((dayName, idx) => {
-                          const day = week.days[idx];
-                          const hasLessons = day.lessons.length > 0;
-
-                          return (
-                            <div
-                              key={day.dateStr}
-                              className={`rounded-lg border-2 p-3 min-h-[180px] flex flex-col ${
-                                day.isToday
-                                  ? 'border-blue-500 bg-blue-50'
-                                  : day.isOtherMonth
-                                  ? 'border-gray-200 bg-gray-50'
-                                  : hasLessons
-                                  ? 'border-indigo-300 bg-indigo-50'
-                                  : 'border-gray-200 bg-white'
-                              }`}
-                            >
-                              {/* Datum-Header */}
-                              <div className="pb-2 border-b border-gray-300 mb-2">
-                                <p className="text-xs font-semibold text-gray-500 uppercase">{dayName}</p>
-                                <p className={`text-lg font-bold ${
-                                  day.isToday ? 'text-blue-600' : 'text-gray-800'
-                                }`}>
-                                  {day.dayNum}
-                                </p>
-                              </div>
-
-                              {/* Lektionen */}
-                              <div className="flex-1 space-y-1 overflow-y-auto text-xs">
-                                {hasLessons ? (
-                                  day.lessons.map((lesson: any, idx) => {
-                                    const lessonKey = `${day.dateStr}-${lesson.studentId}`;
-                                    const actCount = completedSessions.get(lessonKey)?.size || 0;
-                                    const isFull = actCount === ACTIVITY_TYPES.length;
-                                    const isPartial = actCount > 0 && actCount < ACTIVITY_TYPES.length;
-
-                                    return (
-                                      <div key={idx} className="flex gap-1 items-center text-[9px] group">
-                                        <button
-                                          onClick={() => openSessionModal(lesson)}
-                                          className="flex-1 text-left p-1.5 rounded text-xs truncate font-medium transition hover:shadow-md bg-blue-100 text-blue-700 border border-blue-300"
-                                          title={`${lesson.studentName} ${lesson.startTime} (${lesson.durationMinutes}min) - Klick zum Bearbeiten`}
-                                        >
-                                          <span className="text-xs">{lesson.startTime}</span>
-                                          <br />
-                                          <span className="text-[10px] opacity-90 truncate">{lesson.studentName}</span>
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setActivityModal({ lessonKey, studentName: lesson.studentName });
-                                            setSelectedActivities(new Set(completedSessions.get(lessonKey) || []));
-                                          }}
-                                          className={`px-2 py-1.5 rounded font-medium text-white whitespace-nowrap transition ${
-                                            isFull
-                                              ? 'bg-green-600 hover:bg-green-700'
-                                              : isPartial
-                                              ? 'bg-orange-500 hover:bg-orange-600'
-                                              : 'bg-red-500 hover:bg-red-600'
-                                          }`}
-                                          title="Stunde abhaken/erledigt markieren"
-                                        >
-                                          {isFull ? '✓ Fertig' : `${actCount}/${ACTIVITY_TYPES.length}`}
-                                        </button>
-                                        <button
-                                          onClick={async () => {
-                                            if (!confirm(`Stunde von ${lesson.studentName} löschen?`)) return;
-                                            if (lesson.sessionId) {
-                                              await fetch(`/api/lesson-sessions/${lesson.sessionId}`, { method: 'DELETE', credentials: 'include' });
-                                            }
-                                            fetchData();
-                                          }}
-                                          className="px-1 py-1 rounded bg-red-100 text-red-600 opacity-0 group-hover:opacity-100 transition font-medium whitespace-nowrap"
-                                          title="Stunde löschen"
-                                        >
-                                          🗑
-                                        </button>
-                                      </div>
-                                    );
-                                  })
-                                ) : (
-                                  <p className="text-gray-400 text-center py-2">—</p>
-                                )}
-                              </div>
-
-                              {/* Add Extra Button */}
-                              <button
-                                onClick={() => setExtraSessionModal({ studentId: 0, studentName: '', date: day.dateStr })}
-                                className="mt-2 text-[10px] w-full text-indigo-600 hover:bg-indigo-100 px-1 py-1 rounded transition font-semibold"
-                              >
-                                ➕
-                              </button>
-                            </div>
-                          );
-                        })}
+                    <div
+                      key={day.dateStr}
+                      className={`rounded-lg border-2 p-4 ${
+                        day.isToday
+                          ? 'border-blue-500 bg-blue-50'
+                          : hasLessons
+                          ? 'border-indigo-300 bg-indigo-50'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      {/* Datum-Header */}
+                      <div className="pb-2 border-b border-gray-300 mb-3">
+                        <p className={`text-sm font-bold ${
+                          day.isToday ? 'text-blue-600' : 'text-gray-800'
+                        }`}>
+                          {day.label}
+                        </p>
                       </div>
+
+                      {/* Lektionen */}
+                      <div className="space-y-2">
+                        {hasLessons ? (
+                          day.lessons.map((lesson: any, idx) => {
+                            const lessonKey = `${day.dateStr}-${lesson.studentId}`;
+                            const actCount = completedSessions.get(lessonKey)?.size || 0;
+                            const isFull = actCount === ACTIVITY_TYPES.length;
+                            const isPartial = actCount > 0 && actCount < ACTIVITY_TYPES.length;
+
+                            return (
+                              <div key={idx} className="flex gap-2 items-center text-sm group p-2 rounded hover:bg-white/50 transition">
+                                <button
+                                  onClick={() => openSessionModal(lesson)}
+                                  className="flex-1 text-left p-2 rounded font-medium transition hover:shadow-md bg-blue-100 text-blue-700 border border-blue-300"
+                                  title={`${lesson.studentName} ${lesson.startTime} (${lesson.durationMinutes}min) - Klick zum Bearbeiten`}
+                                >
+                                  <span className="font-semibold">{lesson.studentName}</span>
+                                  <br />
+                                  <span className="text-xs opacity-90">{lesson.startTime} · {lesson.durationMinutes}min</span>
+                                  {lesson.theme && <br />}
+                                  {lesson.theme && <span className="text-xs opacity-75">📚 {lesson.theme.slice(0, 30)}</span>}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setActivityModal({ lessonKey, studentName: lesson.studentName });
+                                    setSelectedActivities(new Set(completedSessions.get(lessonKey) || []));
+                                  }}
+                                  className={`px-3 py-2 rounded font-medium text-white transition whitespace-nowrap text-sm ${
+                                    isFull
+                                      ? 'bg-green-600 hover:bg-green-700'
+                                      : isPartial
+                                      ? 'bg-orange-500 hover:bg-orange-600'
+                                      : 'bg-red-500 hover:bg-red-600'
+                                  }`}
+                                  title="Stunde abhaken/erledigt markieren"
+                                >
+                                  {isFull ? '✓' : `${actCount}/${ACTIVITY_TYPES.length}`}
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm(`Stunde von ${lesson.studentName} löschen?`)) return;
+                                    try {
+                                      if (lesson.sessionId) {
+                                        // Existierende Session → löschen
+                                        await fetch(`/api/lesson-sessions/${lesson.sessionId}`, { method: 'DELETE', credentials: 'include' });
+                                      } else {
+                                        // Grundstunde ohne Session → als "cancelled" markieren
+                                        const res = await fetch('/api/lesson-sessions/cancel', {
+                                          method: 'POST',
+                                          credentials: 'include',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ student_id: lesson.studentId, lesson_date: lesson.dateStr }),
+                                        });
+                                        if (!res.ok) throw new Error('Fehler beim Löschen');
+                                      }
+                                      fetchData();
+                                    } catch (err) {
+                                      alert('Fehler beim Löschen der Stunde');
+                                      console.error(err);
+                                    }
+                                  }}
+                                  className="px-2 py-2 rounded bg-red-100 text-red-600 opacity-0 group-hover:opacity-100 transition font-medium"
+                                  title="Stunde löschen"
+                                >
+                                  🗑
+                                </button>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="text-gray-400 text-sm text-center py-2">Keine Termine</p>
+                        )}
+                      </div>
+
+                      {/* Add Extra Button */}
+                      <button
+                        onClick={() => setExtraSessionModal({ studentId: 0, studentName: '', date: day.dateStr })}
+                        className="mt-3 text-sm w-full text-indigo-600 hover:bg-indigo-100 px-2 py-2 rounded border border-indigo-300 transition font-medium"
+                      >
+                        ➕ Extrastunde
+                      </button>
                     </div>
                   );
                 })}
@@ -1730,12 +1736,21 @@ export default function TeacherDashboard() {
                       <h2 className="text-xl font-bold text-gray-800">{detailResult.quiz_title}</h2>
                       <p className="text-gray-500 text-sm">{detailResult.student_name}</p>
                     </div>
-                    <button
-                      onClick={() => setDetailResult(null)}
-                      className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
-                    >
-                      ×
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleDeleteResult(detailResult.id)}
+                        className="text-red-500 hover:text-red-700 text-lg"
+                        title="Ergebnis löschen"
+                      >
+                        🗑
+                      </button>
+                      <button
+                        onClick={() => setDetailResult(null)}
+                        className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">

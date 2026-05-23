@@ -64,6 +64,7 @@ export async function initializeDB() {
     `;
 
     await sql`ALTER TABLE lesson_sessions ADD COLUMN IF NOT EXISTS theme VARCHAR(255)`;
+    await sql`ALTER TABLE lesson_sessions ADD COLUMN IF NOT EXISTS cancelled BOOLEAN DEFAULT FALSE`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS student_files (
@@ -369,6 +370,16 @@ export async function deleteLessonSession(id: number) {
   await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
 }
 
+export async function cancelLessonSession(studentId: number, lessonDate: string) {
+  const rows = await sql`
+    INSERT INTO lesson_sessions (student_id, lesson_date, cancelled)
+    VALUES (${studentId}, ${lessonDate}, true)
+    ON CONFLICT (student_id, lesson_date) DO UPDATE SET cancelled = true
+    RETURNING *
+  `;
+  return rows[0];
+}
+
 export async function getAllResults() {
   const rows = await sql`
     SELECT r.*, s.name, q.title FROM results r
@@ -377,4 +388,8 @@ export async function getAllResults() {
     ORDER BY r.completed_at DESC
   `;
   return rows;
+}
+
+export async function deleteResult(resultId: number) {
+  await sql`DELETE FROM results WHERE id = ${resultId}`;
 }
