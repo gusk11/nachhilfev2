@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Student {
   id: number;
@@ -1123,15 +1124,23 @@ export default function TeacherDashboard() {
       )}
 
       {/* Activity Modal */}
-      {activityModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-          onClick={() => setActivityModal(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {activityModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setActivityModal(null)}
           >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+              className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-800">Stunde erledigt</h2>
               <button onClick={() => setActivityModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
@@ -1194,9 +1203,10 @@ export default function TeacherDashboard() {
                 Bestätigen
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* PIN-Modal */}
       {pinModal && (
