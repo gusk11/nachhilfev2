@@ -112,7 +112,7 @@ export default function TeacherDashboard() {
   const [sessSaving, setSessSaving] = useState(false);
 
   const [extraSessionModal, setExtraSessionModal] = useState<{
-    studentId: number; studentName: string; date: string;
+    studentIds: number[]; date: string;
   } | null>(null);
   const [extraTime, setExtraTime] = useState('15:00');
   const [extraDuration, setExtraDuration] = useState('60');
@@ -585,40 +585,43 @@ export default function TeacherDashboard() {
   };
 
   const handleSaveExtraSession = async () => {
-    if (!extraSessionModal) return;
+    if (!extraSessionModal || extraSessionModal.studentIds.length === 0) return;
     setExtraSaving(true);
     try {
-      const payload = {
-        student_id: extraSessionModal.studentId,
-        lesson_date: extraSessionModal.date,
-        start_time: extraTime || null,
-        duration_minutes: extraDuration ? parseInt(extraDuration) : null,
-        notes: extraNotes || null,
-        theme: extraTheme || null,
-      };
+      // Erstelle für jeden Schüler eine Extrastunde
+      for (const studentId of extraSessionModal.studentIds) {
+        const payload = {
+          student_id: studentId,
+          lesson_date: extraSessionModal.date,
+          start_time: extraTime || null,
+          duration_minutes: extraDuration ? parseInt(extraDuration) : null,
+          notes: extraNotes || null,
+          theme: extraTheme || null,
+        };
 
-      const res = await fetch('/api/lesson-sessions', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+        const res = await fetch('/api/lesson-sessions', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-      if (res.ok) {
-        console.log('✅ Extrastunde erstellt');
-        setExtraSessionModal(null);
-        setExtraTime('15:00');
-        setExtraDuration('60');
-        setExtraNotes('');
-        fetchData();
-      } else {
-        const d = await res.json();
-        alert('Fehler: ' + (d.error || res.status));
+        if (!res.ok) {
+          console.error('❌ Fehler beim Erstellen:', res.status);
+        }
       }
+      console.log('✅ Extrastunden erstellt');
+      setExtraSessionModal(null);
+      setExtraTime('15:00');
+      setExtraDuration('60');
+      setExtraNotes('');
+      setExtraTheme('');
+      fetchData();
     } catch (err) {
       alert('Netzwerkfehler: ' + String(err));
+    } finally {
+      setExtraSaving(false);
     }
-    finally { setExtraSaving(false); }
   };
 
   const handleSaveName = async () => {
@@ -1061,7 +1064,7 @@ export default function TeacherDashboard() {
 
                       {/* Add Extra Button */}
                       <button
-                        onClick={() => setExtraSessionModal({ studentId: 0, studentName: '', date: day.dateStr })}
+                        onClick={() => setExtraSessionModal({ studentIds: [], date: day.dateStr })}
                         className="mt-3 text-sm w-full text-indigo-600 hover:bg-indigo-100 px-2 py-2 rounded border border-indigo-300 transition font-medium"
                       >
                         ➕ Extrastunde
@@ -1165,7 +1168,7 @@ export default function TeacherDashboard() {
                 )}
                 <div className="mt-3">
                   <button
-                    onClick={() => setExtraSessionModal({ studentId: 0, studentName: '', date: dateStr })}
+                    onClick={() => setExtraSessionModal({ studentIds: [], date: dateStr })}
                     className="w-full text-xs bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg border border-indigo-300 hover:bg-indigo-200 transition font-medium"
                   >
                     ➕ Extrastunde hinzufügen
@@ -1691,23 +1694,35 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Schüler-Auswahl */}
+              {/* Schüler-Auswahl (Multi-Select) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">👤 Schüler</label>
-                <select
-                  value={extraSessionModal.studentId}
-                  onChange={(e) => {
-                    const id = parseInt(e.target.value);
-                    const student = students.find((s: any) => s.id === id);
-                    setExtraSessionModal(extraSessionModal ? { ...extraSessionModal, studentId: id, studentName: student?.name || '' } : null);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
-                >
-                  <option value="">-- Schüler wählen --</option>
-                  {students.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">👤 Schüler (mehrfach wählbar)</label>
+                <div className="space-y-2 border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
+                  {students.length === 0 ? (
+                    <p className="text-sm text-gray-500">Keine Schüler vorhanden</p>
+                  ) : (
+                    students.map((s: any) => (
+                      <label key={s.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={extraSessionModal?.studentIds.includes(s.id) || false}
+                          onChange={(e) => {
+                            if (!extraSessionModal) return;
+                            const studentIds = e.target.checked
+                              ? [...extraSessionModal.studentIds, s.id]
+                              : extraSessionModal.studentIds.filter(id => id !== s.id);
+                            setExtraSessionModal({ ...extraSessionModal, studentIds });
+                          }}
+                          className="w-4 h-4 rounded cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-800">{s.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {extraSessionModal?.studentIds.length > 0 && (
+                  <p className="text-xs text-indigo-600 mt-2">✓ {extraSessionModal.studentIds.length} Schüler ausgewählt</p>
+                )}
               </div>
 
               {/* Datum */}
@@ -1750,9 +1765,9 @@ export default function TeacherDashboard() {
             {/* Buttons */}
             <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex gap-3">
               <button onClick={() => setExtraSessionModal(null)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium">Abbrechen</button>
-              <button onClick={handleSaveExtraSession} disabled={extraSaving || !extraSessionModal.studentId}
+              <button onClick={handleSaveExtraSession} disabled={extraSaving || !extraSessionModal?.studentIds.length}
                 className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium">
-                {extraSaving ? 'Erstellt...' : 'Erstellen'}
+                {extraSaving ? 'Erstellt...' : `Erstellen (${extraSessionModal?.studentIds.length || 0})`}
               </button>
             </div>
             </motion.div>
