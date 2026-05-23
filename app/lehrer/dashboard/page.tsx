@@ -818,15 +818,50 @@ export default function TeacherDashboard() {
       {/* Session-bearbeiten-Modal */}
       {sessionModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSessionModal(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-1">
-              <h2 className="text-lg font-bold text-gray-800">✏️ Stunde bearbeiten</h2>
-              <button onClick={() => setSessionModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-1">
+                <h2 className="text-lg font-bold text-gray-800">✏️ Stunde bearbeiten</h2>
+                <button onClick={() => setSessionModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+              </div>
+              <p className="text-sm text-gray-500">
+                {sessionModal.studentName}
+              </p>
             </div>
-            <p className="text-sm text-gray-500 mb-4">
-              {sessionModal.studentName} · {new Date(sessionModal.date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
-            </p>
-            <div className="space-y-3 mb-4">
+
+            <div className="p-6 space-y-4">
+              {/* Datums-Kalender */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">📅 Datum wählen</label>
+                <div className="grid grid-cols-7 gap-1">
+                  {calendarDays.map(({ dateStr, label }) => {
+                    const [year, month, day] = dateStr.split('-').map(Number);
+                    const dayNum = new Date(year, month - 1, day).getDay();
+                    const dayName = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][dayNum];
+                    const isSelected = sessionModal.date === dateStr;
+                    return (
+                      <button
+                        key={dateStr}
+                        onClick={() => setSessionModal({ ...sessionModal, date: dateStr })}
+                        className={`p-2 rounded-lg text-sm font-medium transition ${
+                          isSelected
+                            ? 'bg-[#032e65] text-white ring-2 ring-[#032e65]'
+                            : 'bg-[#eef3fb] text-gray-700 border border-[#dce8f7] hover:bg-[#d7e5f6]'
+                        }`}
+                        title={label}
+                      >
+                        <div className="text-xs opacity-75">{dayName}</div>
+                        <div>{day}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Aktuell: <strong>{new Date(sessionModal.date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}</strong>
+                </p>
+              </div>
+
+              {/* Uhrzeit */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Uhrzeit <span className="text-gray-400 font-normal">(Standard: {sessionModal.standardTime})</span>
@@ -836,6 +871,8 @@ export default function TeacherDashboard() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
                 <p className="text-xs text-gray-400 mt-0.5">Leer lassen = Standardzeit verwenden</p>
               </div>
+
+              {/* Dauer */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Dauer in Min. <span className="text-gray-400 font-normal">(Standard: {sessionModal.standardDuration})</span>
@@ -844,23 +881,27 @@ export default function TeacherDashboard() {
                   placeholder={String(sessionModal.standardDuration)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
               </div>
+
+              {/* Notizen */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">📝 Notizen / Aufgaben für den Schüler</label>
-                <textarea value={sessNotes} onChange={(e) => setSessNotes(e.target.value)} rows={4}
+                <textarea value={sessNotes} onChange={(e) => setSessNotes(e.target.value)} rows={3}
                   placeholder="Was soll bis zur nächsten Stunde erledigt werden?"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-sm resize-none" />
               </div>
             </div>
-            <div className="flex gap-3">
+
+            {/* Buttons */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex gap-3">
               {sessionModal.sessionId && (
                 <button onClick={() => handleDeleteSession(sessionModal.sessionId!)}
-                  className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 text-sm">
+                  className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 text-sm font-medium">
                   Zurücksetzen
                 </button>
               )}
-              <button onClick={() => setSessionModal(null)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">Abbrechen</button>
+              <button onClick={() => setSessionModal(null)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium">Abbrechen</button>
               <button onClick={handleSaveSession} disabled={sessSaving}
-                className="flex-1 bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50">
+                className="flex-1 bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50 font-medium">
                 {sessSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
