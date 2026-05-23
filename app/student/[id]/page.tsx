@@ -82,9 +82,11 @@ export default function StudentDashboard() {
 
   // Accordion sections
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    quizzes: true,
+    quizzes: false,
     results: false,
     documents: false,
+    availableDocuments: false,
+    uploadDocuments: false,
   });
 
   const toggleSection = (section: string) => {
@@ -255,11 +257,18 @@ export default function StudentDashboard() {
               <span className={`transform transition ${openSections.results ? 'rotate-180' : ''}`}>▼</span>
             </button>
             <button
-              onClick={() => toggleSection('documents')}
+              onClick={() => toggleSection('availableDocuments')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>📎 Dokumente</span>
-              <span className={`transform transition ${openSections.documents ? 'rotate-180' : ''}`}>▼</span>
+              <span>📚 Verfügbare Dokumente (Probetests, Übersichten)</span>
+              <span className={`transform transition ${openSections.availableDocuments ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            <button
+              onClick={() => toggleSection('uploadDocuments')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>📤 Dokumente hochladen (Tests, ...)</span>
+              <span className={`transform transition ${openSections.uploadDocuments ? 'rotate-180' : ''}`}>▼</span>
             </button>
           </div>
         </div>
@@ -320,117 +329,122 @@ export default function StudentDashboard() {
             </div>
           )}
 
-          {openSections.documents && (
+          {openSections.availableDocuments && (
             <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📎 Dokumente</h2>
+              <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📚 Verfügbare Dokumente (Probetests, Übersichten)</h2>
+            <div className="space-y-3">
+              {files.length === 0 ? (
+                <p className="text-gray-500 text-sm">Noch keine Dokumente vorhanden</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {files.map((f) => (
+                    <div
+                      key={f.id}
+                      className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500"
+                    >
+                      <div className="flex items-start gap-3 mb-2">
+                        <span className="text-2xl flex-shrink-0">📄</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm leading-tight break-words">
+                            {f.display_name || f.filename}
+                          </p>
+                          {f.note && (
+                            <p className="text-xs text-gray-500 mt-0.5 break-words">{f.note}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              f.uploaded_by === 'teacher'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {f.uploaded_by === 'teacher' ? '🎓 Lehrer' : '👤 Schüler'}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {new Date(f.uploaded_at).toLocaleDateString('de-DE')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
 
-          {/* Upload-Formular */}
-          <form onSubmit={handleUpload} className="bg-white rounded-lg shadow p-4 mb-6 border border-dashed border-[#032e65]/30">
-            <p className="text-sm font-semibold text-[#032e65] mb-3">Dokument hochladen</p>
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={uploadName}
-                onChange={(e) => setUploadName(e.target.value)}
-                placeholder="Name des Dokuments *"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
-                required
-              />
-              <input
-                type="text"
-                value={uploadNote}
-                onChange={(e) => setUploadNote(e.target.value)}
-                placeholder="Notiz (optional)"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
-              />
-              <div className="flex gap-2">
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  className="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={uploading || !uploadFile || !uploadName.trim()}
-                  className="bg-[#032e65] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#021d40] disabled:opacity-50 whitespace-nowrap"
-                >
-                  {uploading ? '...' : 'Hochladen'}
-                </button>
-              </div>
-            </div>
-          </form>
+                      <a
+                        href={`/api/files/${f.id}/download`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-center text-xs bg-[#032e65] text-white py-1.5 rounded-lg hover:bg-[#021d40] transition mb-3"
+                      >
+                        PDF öffnen
+                      </a>
 
-          {/* Dateiliste */}
-          {files.length === 0 ? (
-            <p className="text-gray-500 text-sm">Noch keine Dokumente vorhanden</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {files.map((f) => (
-                <div
-                  key={f.id}
-                  className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500"
-                >
-                  <div className="flex items-start gap-3 mb-2">
-                    <span className="text-2xl flex-shrink-0">📄</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm leading-tight break-words">
-                        {f.display_name || f.filename}
-                      </p>
-                      {f.note && (
-                        <p className="text-xs text-gray-500 mt-0.5 break-words">{f.note}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                          f.uploaded_by === 'teacher'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-green-100 text-green-700'
-                        }`}>
-                          {f.uploaded_by === 'teacher' ? '🎓 Lehrer' : '👤 Schüler'}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {new Date(f.uploaded_at).toLocaleDateString('de-DE')}
-                        </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => updateFileStatus(f.id, !f.seen, f.completed)}
+                          className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${
+                            f.seen
+                              ? 'bg-blue-100 border-blue-300 text-blue-700'
+                              : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-blue-50'
+                          }`}
+                        >
+                          {f.seen ? '👁 Gesehen ✓' : '👁 Gesehen'}
+                        </button>
+                        <button
+                          onClick={() => updateFileStatus(f.id, f.seen || true, !f.completed)}
+                          className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${
+                            f.completed
+                              ? 'bg-green-100 border-green-300 text-green-700'
+                              : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-green-50'
+                          }`}
+                        >
+                          {f.completed ? '✓ Erledigt ✓' : '✓ Erledigt'}
+                        </button>
                       </div>
                     </div>
-                  </div>
-
-                  <a
-                    href={`/api/files/${f.id}/download`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-center text-xs bg-[#032e65] text-white py-1.5 rounded-lg hover:bg-[#021d40] transition mb-3"
-                  >
-                    PDF öffnen
-                  </a>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => updateFileStatus(f.id, !f.seen, f.completed)}
-                      className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${
-                        f.seen
-                          ? 'bg-blue-100 border-blue-300 text-blue-700'
-                          : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-blue-50'
-                      }`}
-                    >
-                      {f.seen ? '👁 Gesehen ✓' : '👁 Gesehen'}
-                    </button>
-                    <button
-                      onClick={() => updateFileStatus(f.id, f.seen || true, !f.completed)}
-                      className={`flex-1 text-xs py-1.5 rounded-lg border transition font-medium ${
-                        f.completed
-                          ? 'bg-green-100 border-green-300 text-green-700'
-                          : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-green-50'
-                      }`}
-                    >
-                      {f.completed ? '✓ Erledigt ✓' : '✓ Erledigt'}
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-            )}
+            </div>
+          )}
+
+          {openSections.uploadDocuments && (
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📤 Dokumente hochladen (Tests, ...)</h2>
+              <form onSubmit={handleUpload} className="space-y-4">
+                <div>
+                  <input
+                    type="text"
+                    value={uploadName}
+                    onChange={(e) => setUploadName(e.target.value)}
+                    placeholder="Name des Dokuments *"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    value={uploadNote}
+                    onChange={(e) => setUploadNote(e.target.value)}
+                    placeholder="Notiz (optional)"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    className="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={uploading || !uploadFile || !uploadName.trim()}
+                    className="bg-[#032e65] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#021d40] disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {uploading ? '...' : 'Hochladen'}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </div>

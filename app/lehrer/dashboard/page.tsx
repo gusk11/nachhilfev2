@@ -73,7 +73,7 @@ export default function TeacherDashboard() {
 
   // Accordion sections
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    upload: true,
+    upload: false,
     results: false,
     students: false,
     schedule: false,
