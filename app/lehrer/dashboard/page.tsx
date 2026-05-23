@@ -963,16 +963,16 @@ export default function TeacherDashboard() {
                                             setActivityModal({ lessonKey, studentName: lesson.studentName });
                                             setSelectedActivities(new Set(completedSessions.get(lessonKey) || []));
                                           }}
-                                          className={`px-1.5 py-1 rounded text-[9px] font-semibold whitespace-nowrap transition ${
+                                          className={`px-2 py-1.5 rounded font-medium text-white whitespace-nowrap transition ${
                                             isFull
-                                              ? 'bg-green-500 text-white'
+                                              ? 'bg-green-600 hover:bg-green-700'
                                               : isPartial
-                                              ? 'bg-orange-500 text-white'
-                                              : 'bg-red-500 text-white'
+                                              ? 'bg-orange-500 hover:bg-orange-600'
+                                              : 'bg-red-500 hover:bg-red-600'
                                           }`}
-                                          title="Stunde abhaken"
+                                          title="Stunde abhaken/erledigt markieren"
                                         >
-                                          {isFull ? '✓' : `${actCount}`}
+                                          {isFull ? '✓ Fertig' : `${actCount}/${ACTIVITY_TYPES.length}`}
                                         </button>
                                         <button
                                           onClick={async () => {
