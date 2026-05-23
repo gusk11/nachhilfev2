@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalVariants, modalContentVariants, accordionContentVariants, rotateArrowVariants } from '@/app/lib/motionVariants';
+import { GlassButton } from '@/app/components/GlassEffect';
 
 interface Student {
   id: number;
@@ -73,16 +74,11 @@ export default function TeacherDashboard() {
   const [newName, setNewName] = useState('');
   const [nameSaving, setNameSaving] = useState(false);
 
-  // Accordion sections
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    upload: false,
-    results: false,
-    students: false,
-    schedule: false,
-  });
+  // Accordion sections (Single-Expand: nur eine gleichzeitig offen)
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   const toggleSection = (section: string) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setOpenSection(openSection === section ? null : section);
   };
 
   const isPastLesson = (dateStr: string, timeStr: string) => {
@@ -647,72 +643,49 @@ export default function TeacherDashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Accordion Navigation */}
-        <div className="bg-white rounded-lg shadow-lg mb-8 overflow-hidden">
-          <div className="divide-y divide-gray-200">
-            <button
+        {/* Accordion Navigation - Glass Style */}
+        <div className="mb-8 space-y-3">
+            <GlassButton
+              emoji="📤"
+              label="Quiz hochladen"
+              isOpen={openSection === 'upload'}
               onClick={() => toggleSection('upload')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>📤 Quiz hochladen</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.upload ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-            <button
+              Quiz hochladen
+            </GlassButton>
+
+            <GlassButton
+              emoji="📊"
+              label="Ergebnisse anzeigen"
+              isOpen={openSection === 'results'}
               onClick={() => toggleSection('results')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>📊 Ergebnisse</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.results ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-            <button
+              Ergebnisse
+            </GlassButton>
+
+            <GlassButton
+              emoji="👥"
+              label="Schüler verwalten"
+              isOpen={openSection === 'students'}
               onClick={() => toggleSection('students')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>👥 Registrierte Schüler</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.students ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-            <button
+              Registrierte Schüler
+            </GlassButton>
+
+            <GlassButton
+              emoji="📅"
+              label="Stundenplan & Kalender"
+              isOpen={openSection === 'schedule'}
               onClick={() => toggleSection('schedule')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>📅 Stundenplan</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.schedule ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-          </div>
+              Stundenplan
+            </GlassButton>
         </div>
 
         {/* Content Area */}
         <div className="space-y-8">
           <AnimatePresence>
-            {openSections.upload && (
+            {openSection === 'upload' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -781,7 +754,7 @@ export default function TeacherDashboard() {
           </AnimatePresence>
 
           <AnimatePresence>
-            {openSections.results && (
+            {openSection === 'results' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -830,7 +803,7 @@ export default function TeacherDashboard() {
           </AnimatePresence>
 
           <AnimatePresence>
-            {openSections.students && (
+            {openSection === 'students' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -907,7 +880,7 @@ export default function TeacherDashboard() {
           </AnimatePresence>
 
           <AnimatePresence>
-            {openSections.schedule && (
+            {openSection === 'schedule' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -1006,7 +979,7 @@ export default function TeacherDashboard() {
 
           {/* Alte Zeilen-View (optional für Referenz) */}
           <AnimatePresence>
-            {openSections.schedule && false && (
+            {openSection === 'schedule' && false && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
