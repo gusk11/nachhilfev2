@@ -163,6 +163,10 @@ export async function updateStudentPin(id: number, pinHash: string, pinSalt: str
   await sql`UPDATE students SET pin_hash = ${pinHash}, pin_salt = ${pinSalt} WHERE id = ${id}`;
 }
 
+export async function updateStudentName(id: number, name: string) {
+  await sql`UPDATE students SET name = ${name} WHERE id = ${id}`;
+}
+
 export async function getStudentFiles(studentId: number) {
   const rows = await sql`
     SELECT sf.*, fs.seen, fs.completed

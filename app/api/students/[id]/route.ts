@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken, generatePINHash } from '@/lib/auth';
-import { deleteStudent, updateStudentPin } from '@/lib/db';
+import { deleteStudent, updateStudentPin, updateStudentName } from '@/lib/db';
 
 async function requireTeacher() {
   const cookieStore = await cookies();
@@ -38,13 +38,24 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { pin } = await req.json();
+    const body = await req.json();
+    const { id } = await params;
+
+    if (body.name !== undefined) {
+      const name = body.name?.trim();
+      if (!name || name.length === 0) {
+        return NextResponse.json({ error: 'Name darf nicht leer sein' }, { status: 400 });
+      }
+      await updateStudentName(parseInt(id), name);
+      return NextResponse.json({ success: true });
+    }
+
+    const pin = body.pin;
     if (!pin || typeof pin !== 'string' || pin.trim().length === 0) {
       return NextResponse.json({ error: 'PIN erforderlich' }, { status: 400 });
     }
 
     const { hash, salt } = generatePINHash(pin.trim());
-    const { id } = await params;
     await updateStudentPin(parseInt(id), hash, salt);
     return NextResponse.json({ success: true });
   } catch (error) {

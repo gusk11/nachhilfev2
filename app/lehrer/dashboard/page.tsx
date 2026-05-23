@@ -64,6 +64,10 @@ export default function TeacherDashboard() {
   const [newPin, setNewPin] = useState('');
   const [pinSaving, setPinSaving] = useState(false);
 
+  const [renameModal, setRenameModal] = useState<{ id: number; name: string } | null>(null);
+  const [newName, setNewName] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+
   // Dateien-Modal
   const [filesModal, setFilesModal] = useState<{ id: number; name: string } | null>(null);
   const [studentFiles, setStudentFiles] = useState<StudentFile[]>([]);
@@ -201,6 +205,31 @@ export default function TeacherDashboard() {
       alert('Netzwerkfehler');
     } finally {
       setPinSaving(false);
+    }
+  };
+
+  const handleSaveName = async () => {
+    if (!renameModal || !newName.trim()) return;
+    setNameSaving(true);
+    try {
+      const res = await fetch(`/api/students/${renameModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      if (res.ok) {
+        setRenameModal(null);
+        setNewName('');
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert('Fehler: ' + (data.error || 'Unbekannt'));
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setNameSaving(false);
     }
   };
 
@@ -380,6 +409,12 @@ export default function TeacherDashboard() {
                       📎 Dateien
                     </button>
                     <button
+                      onClick={() => { setRenameModal({ id: s.id, name: s.name }); setNewName(s.name); }}
+                      className="flex-1 text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600 transition"
+                    >
+                      ✏️ Name
+                    </button>
+                    <button
                       onClick={() => { setPinModal({ id: s.id, name: s.name }); setNewPin(''); }}
                       className="flex-1 text-xs bg-[#032e65] text-white px-2 py-1 rounded hover:bg-[#021d40] transition"
                     >
@@ -479,6 +514,51 @@ export default function TeacherDashboard() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Name-bearbeiten-Modal */}
+      {renameModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setRenameModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Name bearbeiten</h2>
+              <button onClick={() => setRenameModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Neuer Name für <span className="font-semibold">{renameModal.name}</span>
+            </p>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+              placeholder="Neuer Name"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRenameModal(null)}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleSaveName}
+                disabled={!newName.trim() || nameSaving}
+                className="flex-1 bg-amber-500 text-white py-2 rounded-lg hover:bg-amber-600 disabled:opacity-50"
+              >
+                {nameSaving ? 'Speichert...' : 'Speichern'}
+              </button>
             </div>
           </div>
         </div>
