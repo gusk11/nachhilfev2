@@ -119,10 +119,16 @@ export default function TeacherDashboard() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfUploading, setPdfUploading] = useState(false);
 
-  // Completion Modal
-  const [completionModal, setCompletionModal] = useState<{ lessonId?: string; studentName?: string; date?: string } | null>(null);
-  const [completedSessions, setCompletedSessions] = useState<Set<string>>(new Set());
-  const [selectedCompletionType, setSelectedCompletionType] = useState<string>('');
+  // Completion tracking
+  const [completedSessions, setCompletedSessions] = useState<Map<string, string>>(new Map());
+
+  const ACTIVITY_TYPES = [
+    { id: 'homework', label: 'Rechnung', emoji: '📝' },
+    { id: 'quiz', label: 'Quiz', emoji: '✏️' },
+    { id: 'exercises', label: 'Übungsblätter', emoji: '📄' },
+    { id: 'tests', label: 'Tests', emoji: '📋' },
+    { id: 'rescheduled', label: 'Neue Stunde', emoji: '🔄' },
+  ];
 
   useEffect(() => {
     fetchData();
@@ -674,62 +680,83 @@ export default function TeacherDashboard() {
                   <div className="space-y-2">
                     {lessons.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((lesson: any) => {
                       const lessonKey = `${dateStr}-${lesson.studentId}`;
-                      const isCompleted = completedSessions.has(lessonKey);
+                      const selectedActivity = completedSessions.get(lessonKey);
+                      const isCompleted = !!selectedActivity;
                       const isPast = isPastLesson(dateStr, lesson.startTime);
 
                       return (
-                        <div
-                          key={lessonKey}
-                          className={`flex items-center justify-between p-3 rounded-lg border ${
-                            isCompleted
-                              ? 'bg-green-50 border-green-300'
-                              : lesson.isChanged
-                              ? 'bg-red-50 border-red-300'
-                              : 'bg-[#eef3fb] border-[#dce8f7]'
-                          }`}
-                        >
-                          <div>
-                            <p className={`font-semibold text-sm ${isCompleted ? 'text-green-700' : 'text-gray-800'}`}>
-                              {isCompleted && '✓ '}{lesson.studentName}
-                            </p>
-                            <p className={`text-sm ${
-                              isCompleted ? 'text-green-600 font-medium' : lesson.isChanged ? 'text-red-600 font-medium' : 'text-gray-600'
-                            }`}>
-                              {lesson.startTime} Uhr · {lesson.durationMinutes} Min.
-                              {lesson.isChanged && <span className="ml-1 text-xs">(Standard: {lesson.standardTime})</span>}
-                            </p>
-                            {lesson.notes && (
-                              <p className="text-xs text-gray-500 mt-0.5 italic">📝 {lesson.notes.slice(0, 60)}{lesson.notes.length > 60 ? '…' : ''}</p>
-                            )}
-                          </div>
-                          <div className="flex gap-2 flex-shrink-0 ml-3">
-                            {isPast && !isCompleted && (
-                              <button
-                                onClick={() => setCompletionModal({ lessonId: lessonKey, studentName: lesson.studentName, date: dateStr })}
-                                className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition"
-                              >
-                                ✓ Abhaken
-                              </button>
-                            )}
-                            {isCompleted && (
-                              <button
-                                onClick={() => {
-                                  const newSet = new Set(completedSessions);
-                                  newSet.delete(lessonKey);
-                                  setCompletedSessions(newSet);
-                                }}
-                                className="text-xs bg-gray-400 text-white px-3 py-1.5 rounded-lg hover:bg-gray-500 transition"
-                              >
-                                ↩ Rückgängig
-                              </button>
-                            )}
+                        <div key={lessonKey} className="space-y-2">
+                          <div
+                            className={`flex items-center justify-between p-3 rounded-lg border ${
+                              isCompleted
+                                ? 'bg-green-50 border-green-300'
+                                : lesson.isChanged
+                                ? 'bg-red-50 border-red-300'
+                                : 'bg-[#eef3fb] border-[#dce8f7]'
+                            }`}
+                          >
+                            <div>
+                              <p className={`font-semibold text-sm ${isCompleted ? 'text-green-700' : 'text-gray-800'}`}>
+                                {isCompleted && '✓ '}{lesson.studentName}
+                              </p>
+                              <p className={`text-sm ${
+                                isCompleted ? 'text-green-600 font-medium' : lesson.isChanged ? 'text-red-600 font-medium' : 'text-gray-600'
+                              }`}>
+                                {lesson.startTime} Uhr · {lesson.durationMinutes} Min.
+                                {lesson.isChanged && <span className="ml-1 text-xs">(Standard: {lesson.standardTime})</span>}
+                              </p>
+                              {lesson.notes && (
+                                <p className="text-xs text-gray-500 mt-0.5 italic">📝 {lesson.notes.slice(0, 60)}{lesson.notes.length > 60 ? '…' : ''}</p>
+                              )}
+                            </div>
                             <button
                               onClick={() => openSessionModal(lesson)}
-                              className="text-xs bg-[#032e65] text-white px-3 py-1.5 rounded-lg hover:bg-[#021d40] transition"
+                              className="text-xs bg-[#032e65] text-white px-3 py-1.5 rounded-lg hover:bg-[#021d40] transition flex-shrink-0 ml-3"
                             >
                               ✏️ Bearbeiten
                             </button>
                           </div>
+
+                          {isPast && (
+                            <div className="flex gap-1 flex-wrap pl-3 pb-1">
+                              {ACTIVITY_TYPES.map(activity => {
+                                const isSelected = selectedActivity === activity.id;
+                                return (
+                                  <button
+                                    key={activity.id}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        const newMap = new Map(completedSessions);
+                                        newMap.delete(lessonKey);
+                                        setCompletedSessions(newMap);
+                                      } else {
+                                        setCompletedSessions(new Map(completedSessions).set(lessonKey, activity.id));
+                                      }
+                                    }}
+                                    className={`text-xs px-2 py-1 rounded transition whitespace-nowrap ${
+                                      isSelected
+                                        ? 'bg-green-500 text-white font-medium'
+                                        : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                    }`}
+                                  >
+                                    {activity.emoji} {activity.label}
+                                  </button>
+                                );
+                              })}
+                              {isCompleted && (
+                                <button
+                                  onClick={() => {
+                                    const newMap = new Map(completedSessions);
+                                    newMap.delete(lessonKey);
+                                    setCompletedSessions(newMap);
+                                  }}
+                                  className="text-xs px-2 py-1 rounded bg-gray-300 text-gray-700 hover:bg-gray-400 transition ml-auto"
+                                >
+                                  ↩ Rückgängig
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1089,73 +1116,6 @@ export default function TeacherDashboard() {
               >
                 {pinSaving ? 'Speichert...' : 'Speichern'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Completion Modal */}
-      {completionModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-          onClick={() => setCompletionModal(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-[#032e65] mb-4">
-                ✓ {completionModal.studentName} - Stunde abhaken
-              </h3>
-              <p className="text-sm text-gray-600 mb-6">
-                Welche Aktivitäten haben stattgefunden?
-              </p>
-
-              <div className="space-y-2 mb-6">
-                {[
-                  { id: 'homework', label: completionModal.studentName + ' Rechnung', emoji: '📝' },
-                  { id: 'quiz', label: 'Quiz', emoji: '✏️' },
-                  { id: 'exercises', label: 'Übungsblätter', emoji: '📄' },
-                  { id: 'tests', label: 'Tests', emoji: '📋' },
-                  { id: 'rescheduled', label: 'Neue Stunde ausgemacht', emoji: '🔄' },
-                ].map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setSelectedCompletionType(opt.id)}
-                    className={`w-full p-3 rounded-lg border-2 text-left font-medium transition ${
-                      selectedCompletionType === opt.id
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    {opt.emoji} {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setCompletionModal(null)}
-                  className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50"
-                >
-                  Abbrechen
-                </button>
-                <button
-                  onClick={() => {
-                    if (completionModal.lessonId) {
-                      setCompletedSessions(prev => new Set([...prev, completionModal.lessonId!]));
-                      alert(`✓ Stunde für ${completionModal.studentName} als "${selectedCompletionType || 'erledigt'}" markiert!`);
-                      setCompletionModal(null);
-                      setSelectedCompletionType('');
-                    }
-                  }}
-                  disabled={!selectedCompletionType}
-                  className="flex-1 px-4 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 disabled:opacity-50 transition"
-                >
-                  ✓ Bestätigen
-                </button>
-              </div>
             </div>
           </div>
         </div>
