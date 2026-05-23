@@ -830,14 +830,25 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Datums-Kalender */}
+              {/* Datums-Kalender – alle 14 Tage */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">📅 Datum wählen</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">📅 Datum wählen – nächste 2 Wochen</label>
                 <div className="grid grid-cols-7 gap-1">
-                  {calendarDays.map(({ dateStr, label }) => {
-                    const [year, month, day] = dateStr.split('-').map(Number);
-                    const dayNum = new Date(year, month - 1, day).getDay();
-                    const dayName = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][dayNum];
+                  {(() => {
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                    const today = new Date(); today.setHours(0, 0, 0, 0);
+                    const days = [];
+                    for (let i = 0; i < 14; i++) {
+                      const d = new Date(today); d.setDate(today.getDate() + i);
+                      const dateStr = localDateStr(d);
+                      const dow = d.getDay();
+                      const dayName = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][dow];
+                      const dayNum = d.getDate();
+                      days.push({ dateStr, dayName, dayNum });
+                    }
+                    return days;
+                  })().map(({ dateStr, dayName, dayNum }) => {
                     const isSelected = sessionModal.date === dateStr;
                     return (
                       <button
@@ -848,10 +859,10 @@ export default function TeacherDashboard() {
                             ? 'bg-[#032e65] text-white ring-2 ring-[#032e65]'
                             : 'bg-[#eef3fb] text-gray-700 border border-[#dce8f7] hover:bg-[#d7e5f6]'
                         }`}
-                        title={label}
+                        title={dateStr}
                       >
                         <div className="text-xs opacity-75">{dayName}</div>
-                        <div>{day}</div>
+                        <div>{dayNum}</div>
                       </button>
                     );
                   })}
