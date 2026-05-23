@@ -74,10 +74,10 @@ export const GlassButton: React.FC<{
           <span className="text-2xl transition-transform duration-500 group-hover:scale-110">
             {emoji}
           </span>
-          <span className="text-lg font-medium text-white">{children}</span>
+          <span className="text-lg font-semibold text-[#032e65]">{children}</span>
         </div>
         <span
-          className={`text-xl transition-transform duration-500 ${
+          className={`text-xl text-[#032e65] transition-transform duration-500 ${
             isOpen ? 'rotate-180' : ''
           }`}
         >
@@ -88,7 +88,7 @@ export const GlassButton: React.FC<{
 
     {/* Hover Tooltip */}
     <div className="absolute left-0 right-0 -top-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-      <div className="text-center text-xs font-semibold text-white bg-black/40 px-3 py-1 rounded-full mx-auto w-fit">
+      <div className="text-center text-xs font-semibold text-white bg-[#032e65] px-3 py-1 rounded-full mx-auto w-fit">
         {label}
       </div>
     </div>

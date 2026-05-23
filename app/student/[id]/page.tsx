@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { accordionContentVariants, rotateArrowVariants } from '@/app/lib/motionVariants';
+import { GlassButton } from '@/app/components/GlassEffect';
 
 interface Quiz {
   id: number;
@@ -86,17 +87,11 @@ export default function StudentDashboard() {
   const [studentSubject, setStudentSubject] = useState('');
   const [savingInfo, setSavingInfo] = useState(false);
 
-  // Accordion sections
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    info: false,
-    quizzes: false,
-    results: false,
-    availableDocuments: false,
-    uploadDocuments: false,
-  });
+  // Accordion sections (Single-Expand)
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   const toggleSection = (section: string) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setOpenSection(openSection === section ? null : section);
   };
 
   useEffect(() => {
@@ -245,86 +240,58 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Accordion Navigation */}
-        <div className="bg-white rounded-lg shadow-lg mb-8 overflow-hidden">
-          <div className="divide-y divide-gray-200">
-            <button
+        {/* Accordion Navigation - Glass Style */}
+        <div className="mb-8 space-y-3">
+            <GlassButton
+              emoji="👤"
+              label="Meine Informationen"
+              isOpen={openSection === 'info'}
               onClick={() => toggleSection('info')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>👤 Meine Informationen</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.info ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-            <button
+              Meine Informationen
+            </GlassButton>
+
+            <GlassButton
+              emoji="📝"
+              label="Verfügbare Quizzes"
+              isOpen={openSection === 'quizzes'}
               onClick={() => toggleSection('quizzes')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>📝 Verfügbare Quizzes</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.quizzes ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-            <button
+              Verfügbare Quizzes
+            </GlassButton>
+
+            <GlassButton
+              emoji="📈"
+              label="Meine Ergebnisse"
+              isOpen={openSection === 'results'}
               onClick={() => toggleSection('results')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>📈 Ergebnisse</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.results ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-            <button
+              Ergebnisse
+            </GlassButton>
+
+            <GlassButton
+              emoji="📚"
+              label="Verfügbare Dokumente"
+              isOpen={openSection === 'availableDocuments'}
               onClick={() => toggleSection('availableDocuments')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>📚 Verfügbare Dokumente (Probetests, Übersichten)</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.availableDocuments ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-            <button
+              Dokumente
+            </GlassButton>
+
+            <GlassButton
+              emoji="📤"
+              label="Dateien hochladen"
+              isOpen={openSection === 'uploadDocuments'}
               onClick={() => toggleSection('uploadDocuments')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
-              <span>📤 Dokumente hochladen (Tests, ...)</span>
-              <motion.span
-                variants={rotateArrowVariants}
-                initial="closed"
-                animate={openSections.uploadDocuments ? 'open' : 'closed'}
-                transition={{ duration: 0.2 }}
-              >
-                ▼
-              </motion.span>
-            </button>
-          </div>
+              Dateien hochladen
+            </GlassButton>
         </div>
 
         {/* Content Sections */}
         <div className="space-y-8">
           <AnimatePresence>
-            {openSections.info && (
+            {openSection === 'info' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -383,7 +350,7 @@ export default function StudentDashboard() {
           </AnimatePresence>
 
           <AnimatePresence>
-            {openSections.quizzes && (
+            {openSection === 'quizzes' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -416,7 +383,7 @@ export default function StudentDashboard() {
           </AnimatePresence>
 
           <AnimatePresence>
-            {openSections.results && (
+            {openSection === 'results' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -455,7 +422,7 @@ export default function StudentDashboard() {
           </AnimatePresence>
 
           <AnimatePresence>
-            {openSections.availableDocuments && (
+            {openSection === 'availableDocuments' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -540,7 +507,7 @@ export default function StudentDashboard() {
           </AnimatePresence>
 
           <AnimatePresence>
-            {openSections.uploadDocuments && (
+            {openSection === 'uploadDocuments' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
