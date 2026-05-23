@@ -58,13 +58,21 @@ export async function initializeDB() {
         start_time VARCHAR(5),
         duration_minutes INTEGER,
         notes TEXT,
-        theme VARCHAR(255),
         UNIQUE(student_id, lesson_date)
       )
     `;
 
-    await sql`ALTER TABLE lesson_sessions ADD COLUMN IF NOT EXISTS theme VARCHAR(255)`;
-    await sql`ALTER TABLE lesson_sessions ADD COLUMN IF NOT EXISTS cancelled BOOLEAN DEFAULT FALSE`;
+    try {
+      await sql`ALTER TABLE lesson_sessions ADD COLUMN theme VARCHAR(255)`;
+    } catch (e) {
+      // Column might already exist
+    }
+
+    try {
+      await sql`ALTER TABLE lesson_sessions ADD COLUMN cancelled BOOLEAN DEFAULT FALSE`;
+    } catch (e) {
+      // Column might already exist
+    }
 
     await sql`
       CREATE TABLE IF NOT EXISTS student_files (
