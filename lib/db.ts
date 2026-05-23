@@ -16,6 +16,19 @@ async function columnExists(table: string, column: string): Promise<boolean> {
   }
 }
 
+let schemaInitPromise: Promise<void> | null = null;
+
+export function ensureSchema(): Promise<void> {
+  if (!schemaInitPromise) {
+    schemaInitPromise = initializeDB().catch((err) => {
+      // Reset on failure so next call retries instead of caching the error
+      schemaInitPromise = null;
+      throw err;
+    });
+  }
+  return schemaInitPromise;
+}
+
 export async function initializeDB() {
   try {
     await sql`
@@ -172,6 +185,7 @@ export async function createQuiz(
   studentId: number | null,
   questions?: any[]
 ) {
+  await ensureSchema();
   const rows = await sql`
     INSERT INTO quizzes (title, file_key, student_id, questions)
     VALUES (${title}, ${fileKey || null}, ${studentId}, ${questions ? JSON.stringify(questions) : null})
@@ -202,6 +216,7 @@ export async function saveResult(
 }
 
 export async function getResultDetail(resultId: number) {
+  await ensureSchema();
   const rows = await sql`
     SELECT r.id, r.student_id, r.quiz_id, r.score, r.answers, r.completed_at,
            q.title, q.file_key, q.questions,
@@ -334,6 +349,7 @@ export async function upsertLessonSession(
   startTime: string | null, durationMinutes: number | null, notes: string | null,
   theme: string | null = null
 ) {
+  await ensureSchema();
   const rows = await sql`
     INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes, theme)
     VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes}, ${theme})
@@ -345,6 +361,7 @@ export async function upsertLessonSession(
 }
 
 export async function getAllUpcomingLessonSessions() {
+  await ensureSchema();
   const rows = await sql`
     SELECT ls.*, s.name AS student_name
     FROM lesson_sessions ls JOIN students s ON ls.student_id = s.id
@@ -355,6 +372,7 @@ export async function getAllUpcomingLessonSessions() {
 }
 
 export async function getLessonSessionsForStudent(studentId: number) {
+  await ensureSchema();
   const rows = await sql`
     SELECT * FROM lesson_sessions
     WHERE student_id = ${studentId} AND lesson_date >= CURRENT_DATE
@@ -371,6 +389,7 @@ export async function updateLessonSession(
   notes: string | null,
   theme: string | null = null
 ) {
+  await ensureSchema();
   try {
     // Direkt updaten — wenn Konflikt wegen UNIQUE(student_id, lesson_date), dann DELETE + INSERT
     const updated = await sql`
@@ -410,6 +429,7 @@ export async function deleteLessonSession(id: number) {
 }
 
 export async function cancelLessonSession(studentId: number, lessonDate: string) {
+  await ensureSchema();
   const rows = await sql`
     INSERT INTO lesson_sessions (student_id, lesson_date, cancelled)
     VALUES (${studentId}, ${lessonDate}, true)
