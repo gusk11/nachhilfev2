@@ -152,7 +152,11 @@ export default function TeacherDashboard() {
       if (studentsRes.ok) setStudents(await studentsRes.json());
       if (resultsRes.ok) setResults(await resultsRes.json());
       if (schedulesRes.ok) setSchedules(await schedulesRes.json());
-      if (sessionsRes.ok) setSessions(await sessionsRes.json());
+      if (sessionsRes.ok) {
+        const sessionData = await sessionsRes.json();
+        console.log('📥 Sessions geladen:', sessionData);
+        setSessions(sessionData);
+      }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -333,6 +337,17 @@ export default function TeacherDashboard() {
   };
 
   const openSessionModal = (lesson: any) => {
+    console.log('📋 Modal öffnen für Lektion:', {
+      studentName: lesson.studentName,
+      dateStr: lesson.dateStr,
+      sessionId: lesson.sessionId,
+      startTime: lesson.startTime,
+      standardTime: lesson.standardTime,
+      durationMinutes: lesson.durationMinutes,
+      standardDuration: lesson.standardDuration,
+      notes: lesson.notes,
+    });
+
     setSessionModal({
       studentId: lesson.studentId, studentName: lesson.studentName,
       date: lesson.dateStr, originalDate: lesson.dateStr, standardTime: lesson.standardTime,
@@ -345,33 +360,66 @@ export default function TeacherDashboard() {
     setSessTime(lesson.startTime || lesson.standardTime);
     setSessDuration(lesson.durationMinutes ? String(lesson.durationMinutes) : String(lesson.standardDuration));
     setSessNotes(lesson.notes || '');
+
+    console.log('✅ Modal State gesetzt mit Zeit:', lesson.startTime || lesson.standardTime);
   };
 
   const handleSaveSession = async () => {
     if (!sessionModal) return;
     setSessSaving(true);
     try {
+      console.log('🔍 Session speichern:', {
+        studentId: sessionModal.studentId,
+        date: sessionModal.date,
+        originalDate: sessionModal.originalDate,
+        sessionId: sessionModal.sessionId,
+        sessTime,
+        sessDuration,
+        sessNotes,
+      });
+
       // Wenn sich das Datum geändert hat und es eine alte Session gibt, erst die alte löschen
       if (sessionModal.sessionId && sessionModal.date !== sessionModal.originalDate) {
-        await fetch(`/api/lesson-sessions/${sessionModal.sessionId}`, {
+        console.log('🗑️ Alte Session wird gelöscht:', sessionModal.sessionId);
+        const deleteRes = await fetch(`/api/lesson-sessions/${sessionModal.sessionId}`, {
           method: 'DELETE', credentials: 'include'
         });
+        console.log('Delete response:', deleteRes.ok);
       }
+
+      const payload = {
+        student_id: sessionModal.studentId,
+        lesson_date: sessionModal.date,
+        start_time: sessTime || null,
+        duration_minutes: sessDuration ? parseInt(sessDuration) : null,
+        notes: sessNotes || null,
+      };
+
+      console.log('📤 Sende Payload:', payload);
 
       const res = await fetch('/api/lesson-sessions', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: sessionModal.studentId,
-          lesson_date: sessionModal.date,
-          start_time: sessTime || null,
-          duration_minutes: sessDuration ? parseInt(sessDuration) : null,
-          notes: sessNotes || null,
-        }),
+        body: JSON.stringify(payload),
       });
-      if (res.ok) { setSessionModal(null); fetchData(); }
-      else { const d = await res.json(); alert('Fehler: ' + (d.error || res.status)); }
-    } catch { alert('Netzwerkfehler'); }
+
+      console.log('POST response status:', res.status);
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('✅ Session erfolgreich gespeichert:', data);
+        setSessionModal(null);
+        fetchData();
+      }
+      else {
+        const d = await res.json();
+        console.error('❌ Fehler beim Speichern:', d);
+        alert('Fehler: ' + (d.error || res.status));
+      }
+    } catch (err) {
+      console.error('Exception:', err);
+      alert('Netzwerkfehler: ' + String(err));
+    }
     finally { setSessSaving(false); }
   };
 
