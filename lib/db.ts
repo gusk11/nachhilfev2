@@ -332,21 +332,29 @@ export async function updateLessonSession(
   }
 
   const session = currentSession[0];
+  const oldDateStr = String(session.lesson_date).slice(0, 10);
 
-  // Falls Datum sich geändert hat, alte Zeile löschen (für den Fall, dass es einen UNIQUE-Constraint gibt)
-  if (session.lesson_date !== lessonDate) {
+  // Falls Datum sich geändert hat, alte Zeile löschen UND neue mit neuem Datum einfügen
+  if (oldDateStr !== lessonDate) {
+    // Erst alte löschen
     await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
+    // Dann neue mit neuem Datum einfügen (nicht upsert, weil das Datum new ist)
+    const rows = await sql`
+      INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes)
+      VALUES (${session.student_id}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes})
+      RETURNING *
+    `;
+    return rows[0];
+  } else {
+    // Datum gleich geblieben: nur UPDATE
+    const rows = await sql`
+      UPDATE lesson_sessions
+      SET start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    return rows[0];
   }
-
-  // Neue/aktualisierte Session einfügen
-  const rows = await sql`
-    INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes)
-    VALUES (${session.student_id}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes})
-    ON CONFLICT (student_id, lesson_date) DO UPDATE SET
-      start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}
-    RETURNING *
-  `;
-  return rows[0];
 }
 
 export async function deleteLessonSession(id: number) {
