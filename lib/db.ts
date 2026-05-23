@@ -2,6 +2,20 @@ import postgres from 'postgres';
 
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
 
+async function columnExists(table: string, column: string): Promise<boolean> {
+  try {
+    const result = await sql`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = ${table} AND column_name = ${column}
+      ) as exists
+    `;
+    return result[0]?.exists ?? false;
+  } catch {
+    return false;
+  }
+}
+
 export async function initializeDB() {
   try {
     await sql`
@@ -68,16 +82,22 @@ export async function initializeDB() {
       )
     `;
 
-    try {
-      await sql`ALTER TABLE lesson_sessions ADD COLUMN theme VARCHAR(255)`;
-    } catch (e) {
-      // Column might already exist
+    if (!(await columnExists('lesson_sessions', 'theme'))) {
+      try {
+        await sql`ALTER TABLE lesson_sessions ADD COLUMN theme VARCHAR(255)`;
+        console.log('✓ Added theme column to lesson_sessions');
+      } catch (e) {
+        console.error('✗ Failed to add theme column:', e instanceof Error ? e.message : String(e));
+      }
     }
 
-    try {
-      await sql`ALTER TABLE lesson_sessions ADD COLUMN cancelled BOOLEAN DEFAULT FALSE`;
-    } catch (e) {
-      // Column might already exist
+    if (!(await columnExists('lesson_sessions', 'cancelled'))) {
+      try {
+        await sql`ALTER TABLE lesson_sessions ADD COLUMN cancelled BOOLEAN DEFAULT FALSE`;
+        console.log('✓ Added cancelled column to lesson_sessions');
+      } catch (e) {
+        console.error('✗ Failed to add cancelled column:', e instanceof Error ? e.message : String(e));
+      }
     }
 
     await sql`
