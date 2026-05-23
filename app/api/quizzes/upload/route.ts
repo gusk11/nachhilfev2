@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { createQuiz } from '@/lib/db';
-import { put } from '@vercel/blob';
+import { parseQuizTxt } from '@/lib/quiz-parser';
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,12 +23,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File and title required' }, { status: 400 });
     }
 
-    const buffer = await file.arrayBuffer();
-    const fileKey = `quizzes/${Date.now()}-${file.name}`;
+    // Read text file
+    const text = await file.text();
 
-    const blob = await put(fileKey, buffer, { access: 'public' });
+    // Parse TXT format
+    const parsed = parseQuizTxt(text);
 
-    const quiz = await createQuiz(title, blob.url, studentId ? parseInt(studentId as string) : null);
+    // Create quiz with parsed questions directly in DB
+    const quiz = await createQuiz(
+      title,
+      null,
+      studentId ? parseInt(studentId as string) : null,
+      parsed.questions
+    );
 
     return NextResponse.json({ success: true, quiz });
   } catch (error) {

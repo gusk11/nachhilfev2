@@ -18,11 +18,17 @@ export async function initializeDB() {
       CREATE TABLE IF NOT EXISTS quizzes (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
-        file_key VARCHAR(255) NOT NULL,
+        file_key VARCHAR(255),
         student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
+
+    try {
+      await sql`ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS questions JSONB`;
+    } catch (e) {
+      // Column might already exist
+    }
 
     await sql`
       CREATE TABLE IF NOT EXISTS results (
@@ -140,10 +146,15 @@ export async function getQuiz(quizId: number) {
   return rows[0];
 }
 
-export async function createQuiz(title: string, fileKey: string, studentId: number | null) {
+export async function createQuiz(
+  title: string,
+  fileKey: string | null,
+  studentId: number | null,
+  questions?: any[]
+) {
   const rows = await sql`
-    INSERT INTO quizzes (title, file_key, student_id)
-    VALUES (${title}, ${fileKey}, ${studentId})
+    INSERT INTO quizzes (title, file_key, student_id, questions)
+    VALUES (${title}, ${fileKey || null}, ${studentId}, ${questions ? JSON.stringify(questions) : null})
     RETURNING *
   `;
   return rows[0];
@@ -173,7 +184,7 @@ export async function saveResult(
 export async function getResultDetail(resultId: number) {
   const rows = await sql`
     SELECT r.id, r.student_id, r.quiz_id, r.score, r.answers, r.completed_at,
-           q.title, q.file_key,
+           q.title, q.file_key, q.questions,
            s.name AS student_name
     FROM results r
     JOIN quizzes q ON r.quiz_id = q.id

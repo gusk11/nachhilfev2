@@ -2,34 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { getResultDetail, deleteResult } from '@/lib/db';
-import { list } from '@vercel/blob';
-
-interface RawQuestion {
-  id: number;
-  type: 'mc' | 'tf';
-  q: string;
-  opts?: string[];
-  ans: number | boolean;
-}
-
-function transformQuestion(raw: RawQuestion) {
-  if (raw.type === 'mc') {
-    const opts = raw.opts ?? [];
-    return {
-      id: String(raw.id),
-      type: 'multiple' as const,
-      text: raw.q,
-      options: opts,
-      correctAnswer: typeof raw.ans === 'number' ? opts[raw.ans] : undefined,
-    };
-  }
-  return {
-    id: String(raw.id),
-    type: 'true-false' as const,
-    text: raw.q,
-    correctAnswer: raw.ans as boolean,
-  };
-}
 
 export async function GET(
   req: NextRequest,
@@ -71,23 +43,13 @@ export async function GET(
       return NextResponse.json({ ...base, questions: null, answers: null });
     }
 
-    try {
-      let fetchUrl = detail.file_key;
-      if (!fetchUrl.startsWith('http')) {
-        const { blobs } = await list({ prefix: fetchUrl, limit: 1 });
-        if (blobs.length === 0) throw new Error('Blob not found');
-        fetchUrl = blobs[0].url;
-      }
-
-      const res = await fetch(fetchUrl);
-      if (!res.ok) throw new Error(`Blob fetch failed: ${res.status}`);
-      const quizData = JSON.parse(await res.text());
-      const questions = (quizData.questions as RawQuestion[]).map(transformQuestion);
-
+    // New format: questions are stored directly in DB
+    if (detail.questions) {
+      const questions = typeof detail.questions === 'string' ? JSON.parse(detail.questions) : detail.questions;
       return NextResponse.json({ ...base, questions, answers: detail.answers });
-    } catch {
-      return NextResponse.json({ ...base, questions: null, answers: null });
     }
+
+    return NextResponse.json({ ...base, questions: null, answers: null });
   } catch (error) {
     console.error('Get result detail error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

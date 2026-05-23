@@ -588,6 +588,9 @@ export default function TeacherDashboard() {
     if (!extraSessionModal || extraSessionModal.studentIds.length === 0) return;
     setExtraSaving(true);
     try {
+      const errors: string[] = [];
+      let successCount = 0;
+
       // Erstelle für jeden Schüler eine Extrastunde
       for (const studentId of extraSessionModal.studentIds) {
         const payload = {
@@ -599,24 +602,38 @@ export default function TeacherDashboard() {
           theme: extraTheme || null,
         };
 
-        const res = await fetch('/api/lesson-sessions', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        try {
+          const res = await fetch('/api/lesson-sessions', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
 
-        if (!res.ok) {
-          console.error('❌ Fehler beim Erstellen:', res.status);
+          if (!res.ok) {
+            const errorData = await res.json();
+            errors.push(`Schüler-ID ${studentId}: ${errorData.error || res.status}`);
+          } else {
+            successCount++;
+          }
+        } catch (err) {
+          errors.push(`Schüler-ID ${studentId}: ${String(err)}`);
         }
       }
-      console.log('✅ Extrastunden erstellt');
-      setExtraSessionModal(null);
-      setExtraTime('15:00');
-      setExtraDuration('60');
-      setExtraNotes('');
-      setExtraTheme('');
-      fetchData();
+
+      if (successCount > 0) {
+        alert(`✓ ${successCount} Extrastunde${successCount > 1 ? 'n' : ''} erstellt!`);
+        setExtraSessionModal(null);
+        setExtraTime('15:00');
+        setExtraDuration('60');
+        setExtraNotes('');
+        setExtraTheme('');
+        fetchData();
+      }
+
+      if (errors.length > 0) {
+        alert(`⚠ Fehler:\n${errors.join('\n')}`);
+      }
     } catch (err) {
       alert('Netzwerkfehler: ' + String(err));
     } finally {
@@ -778,15 +795,18 @@ export default function TeacherDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    JSON-Datei auswählen
+                    TXT-Datei auswählen
                   </label>
                   <input
                     type="file"
-                    accept=".json"
+                    accept=".txt"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Format: Quiz-Titel, --- Frage 1 ---, Frage-Text, A) Option, ..., ANTWORT: A
+                  </p>
                 </div>
 
                 <div>
