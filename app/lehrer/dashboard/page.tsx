@@ -1402,16 +1402,27 @@ export default function TeacherDashboard() {
             </div>
 
             {/* Buttons */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex gap-3">
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex gap-2 flex-wrap">
               {sessionModal.sessionId && (
                 <button onClick={() => handleDeleteSession(sessionModal.sessionId!)}
-                  className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 text-sm font-medium">
-                  Zurücksetzen
+                  className="flex-1 min-w-[120px] bg-orange-100 text-orange-700 py-2 rounded-lg hover:bg-orange-200 text-sm font-medium">
+                  Session löschen
                 </button>
               )}
-              <button onClick={() => setSessionModal(null)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium">Abbrechen</button>
+              <button onClick={async () => {
+                if (!confirm(`Stunde für ${sessionModal?.studentName} ganz löschen?`)) return;
+                if (sessionModal?.sessionId) {
+                  await fetch(`/api/lesson-sessions/${sessionModal.sessionId}`, { method: 'DELETE', credentials: 'include' });
+                }
+                await fetch(`/api/lesson-schedules/${sessionModal?.studentId}`, { method: 'DELETE', credentials: 'include' });
+                setSessionModal(null);
+                fetchData();
+              }} className="flex-1 min-w-[120px] bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 text-sm font-medium">
+                🗑 Grundstunde löschen
+              </button>
+              <button onClick={() => setSessionModal(null)} className="flex-1 min-w-[100px] bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium">Abbrechen</button>
               <button onClick={handleSaveSession} disabled={sessSaving}
-                className="flex-1 bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50 font-medium">
+                className="flex-1 min-w-[100px] bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50 font-medium">
                 {sessSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>

@@ -326,34 +326,37 @@ export async function updateLessonSession(
   durationMinutes: number | null,
   notes: string | null
 ) {
-  const currentSession = await sql`SELECT * FROM lesson_sessions WHERE id = ${id}`;
-  if (!currentSession.length) {
-    throw new Error('Session nicht gefunden');
-  }
-
-  const session = currentSession[0];
-  const oldDateStr = String(session.lesson_date).slice(0, 10);
-
-  // Falls Datum sich geändert hat, alte Zeile löschen UND neue mit neuem Datum einfügen
-  if (oldDateStr !== lessonDate) {
-    // Erst alte löschen
-    await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
-    // Dann neue mit neuem Datum einfügen (nicht upsert, weil das Datum new ist)
-    const rows = await sql`
-      INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes)
-      VALUES (${session.student_id}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes})
-      RETURNING *
-    `;
-    return rows[0];
-  } else {
-    // Datum gleich geblieben: nur UPDATE
-    const rows = await sql`
+  try {
+    // Direkt updaten — wenn Konflikt wegen UNIQUE(student_id, lesson_date), dann DELETE + INSERT
+    const updated = await sql`
       UPDATE lesson_sessions
-      SET start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}
+      SET lesson_date = ${lessonDate}, start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}
       WHERE id = ${id}
       RETURNING *
     `;
-    return rows[0];
+
+    if (updated.length > 0) {
+      return updated[0];
+    }
+
+    throw new Error('Session nicht gefunden');
+  } catch (err: any) {
+    // Wenn UNIQUE Constraint Fehler, dann alte löschen + neue erstellen
+    if (err.message?.includes('duplicate') || err.message?.includes('UNIQUE')) {
+      const session = await sql`SELECT * FROM lesson_sessions WHERE id = ${id}`;
+      if (!session.length) throw new Error('Session nicht gefunden');
+
+      const studentId = session[0].student_id;
+      await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
+
+      const rows = await sql`
+        INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes)
+        VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes})
+        RETURNING *
+      `;
+      return rows[0];
+    }
+    throw err;
   }
 }
 
