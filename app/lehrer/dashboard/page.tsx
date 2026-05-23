@@ -120,13 +120,14 @@ export default function TeacherDashboard() {
   const [pdfUploading, setPdfUploading] = useState(false);
 
   // Completion tracking
-  const [completedSessions, setCompletedSessions] = useState<Map<string, string>>(new Map());
+  const [completedSessions, setCompletedSessions] = useState<Map<string, Set<string>>>(new Map());
+  const [activityModal, setActivityModal] = useState<{ lessonKey: string; studentName: string } | null>(null);
+  const [selectedActivities, setSelectedActivities] = useState<Set<string>>(new Set());
 
   const ACTIVITY_TYPES = [
     { id: 'homework', label: 'Rechnung', emoji: '📝' },
     { id: 'quiz', label: 'Quiz', emoji: '✏️' },
-    { id: 'exercises', label: 'Übungsblätter', emoji: '📄' },
-    { id: 'tests', label: 'Tests', emoji: '📋' },
+    { id: 'exercises-tests', label: 'Übungsblätter und Tests', emoji: '📋' },
     { id: 'rescheduled', label: 'Neue Stunde', emoji: '🔄' },
   ];
 
@@ -691,8 +692,8 @@ export default function TeacherDashboard() {
                               isCompleted
                                 ? 'bg-green-50 border-green-300'
                                 : lesson.isChanged
-                                ? 'bg-red-50 border-red-300'
-                                : 'bg-[#eef3fb] border-[#dce8f7]'
+                                ? 'bg-orange-50 border-orange-300'
+                                : 'bg-orange-50 border-orange-300'
                             }`}
                           >
                             <div>
@@ -700,63 +701,39 @@ export default function TeacherDashboard() {
                                 {isCompleted && '✓ '}{lesson.studentName}
                               </p>
                               <p className={`text-sm ${
-                                isCompleted ? 'text-green-600 font-medium' : lesson.isChanged ? 'text-red-600 font-medium' : 'text-gray-600'
+                                isCompleted ? 'text-green-600 font-medium' : lesson.isChanged ? 'text-orange-600 font-medium' : 'text-orange-600 font-medium'
                               }`}>
                                 {lesson.startTime} Uhr · {lesson.durationMinutes} Min.
                                 {lesson.isChanged && <span className="ml-1 text-xs">(Standard: {lesson.standardTime})</span>}
                               </p>
                               {lesson.notes && (
-                                <p className="text-xs text-gray-500 mt-0.5 italic">📝 {lesson.notes.slice(0, 60)}{lesson.notes.length > 60 ? '…' : ''}</p>
+                                <p className="text-xs text-gray-600 mt-0.5 italic">📝 {lesson.notes.slice(0, 60)}{lesson.notes.length > 60 ? '…' : ''}</p>
                               )}
                             </div>
-                            <button
-                              onClick={() => openSessionModal(lesson)}
-                              className="text-xs bg-[#032e65] text-white px-3 py-1.5 rounded-lg hover:bg-[#021d40] transition flex-shrink-0 ml-3"
-                            >
-                              ✏️ Bearbeiten
-                            </button>
-                          </div>
-
-                          {isPast && (
-                            <div className="flex gap-1 flex-wrap pl-3 pb-1">
-                              {ACTIVITY_TYPES.map(activity => {
-                                const isSelected = selectedActivity === activity.id;
-                                return (
-                                  <button
-                                    key={activity.id}
-                                    onClick={() => {
-                                      if (isSelected) {
-                                        const newMap = new Map(completedSessions);
-                                        newMap.delete(lessonKey);
-                                        setCompletedSessions(newMap);
-                                      } else {
-                                        setCompletedSessions(new Map(completedSessions).set(lessonKey, activity.id));
-                                      }
-                                    }}
-                                    className={`text-xs px-2 py-1 rounded transition whitespace-nowrap ${
-                                      isSelected
-                                        ? 'bg-green-500 text-white font-medium'
-                                        : 'bg-red-100 text-red-700 hover:bg-red-200'
-                                    }`}
-                                  >
-                                    {activity.emoji} {activity.label}
-                                  </button>
-                                );
-                              })}
-                              {isCompleted && (
+                            <div className="flex gap-2 flex-shrink-0 ml-3">
+                              <button
+                                onClick={() => openSessionModal(lesson)}
+                                className="text-xs bg-[#032e65] text-white px-3 py-1.5 rounded-lg hover:bg-[#021d40] transition"
+                              >
+                                ✏️ Bearbeiten
+                              </button>
+                              {isPast && (
                                 <button
                                   onClick={() => {
-                                    const newMap = new Map(completedSessions);
-                                    newMap.delete(lessonKey);
-                                    setCompletedSessions(newMap);
+                                    setActivityModal({ lessonKey, studentName: lesson.studentName });
+                                    setSelectedActivities(new Set(completedSessions.get(lessonKey) || []));
                                   }}
-                                  className="text-xs px-2 py-1 rounded bg-gray-300 text-gray-700 hover:bg-gray-400 transition ml-auto"
+                                  className={`text-xs px-3 py-1.5 rounded-lg transition font-medium ${
+                                    isCompleted
+                                      ? 'bg-green-500 text-white hover:bg-green-600'
+                                      : 'bg-orange-500 text-white hover:bg-orange-600'
+                                  }`}
                                 >
-                                  ↩ Rückgängig
+                                  {isCompleted ? '✓ Erledigt' : 'Erledigt'}
                                 </button>
                               )}
                             </div>
-                          )}
+                          </div>
                         </div>
                       );
                     })}
@@ -1068,6 +1045,82 @@ export default function TeacherDashboard() {
               <button onClick={handleSaveSession} disabled={sessSaving}
                 className="flex-1 bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50 font-medium">
                 {sessSaving ? 'Speichert...' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Modal */}
+      {activityModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setActivityModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Stunde erledigt</h2>
+              <button onClick={() => setActivityModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              Was wurde in der Stunde mit <span className="font-semibold">{activityModal.studentName}</span> erledigt?
+            </p>
+
+            <div className="space-y-2 mb-6">
+              {ACTIVITY_TYPES.map(activity => {
+                const isSelected = selectedActivities.has(activity.id);
+                return (
+                  <button
+                    key={activity.id}
+                    onClick={() => {
+                      const newSet = new Set(selectedActivities);
+                      if (isSelected) {
+                        newSet.delete(activity.id);
+                      } else {
+                        newSet.add(activity.id);
+                      }
+                      setSelectedActivities(newSet);
+                    }}
+                    className={`w-full p-3 rounded-lg border-2 transition text-left font-medium ${
+                      isSelected
+                        ? 'border-green-500 bg-green-50 text-green-800'
+                        : 'border-gray-300 bg-white text-gray-800 hover:border-gray-400'
+                    }`}
+                  >
+                    <span className="text-lg mr-2">{activity.emoji}</span>
+                    {activity.label}
+                    {isSelected && <span className="ml-2 float-right">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setActivityModal(null)}
+                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => {
+                  if (activityModal) {
+                    const newMap = new Map(completedSessions);
+                    if (selectedActivities.size > 0) {
+                      newMap.set(activityModal.lessonKey, selectedActivities);
+                    } else {
+                      newMap.delete(activityModal.lessonKey);
+                    }
+                    setCompletedSessions(newMap);
+                  }
+                  setActivityModal(null);
+                }}
+                className="flex-1 bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 font-medium"
+              >
+                Bestätigen
               </button>
             </div>
           </div>
