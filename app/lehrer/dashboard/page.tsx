@@ -127,20 +127,25 @@ export default function TeacherDashboard() {
 
   // Kalender: nächste 14 Tage mit Stunden berechnen
   const calendarDays = (() => {
-    const DAYS_DE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    // Lokales Datum als YYYY-MM-DD (kein UTC-Versatz)
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    // lesson_date kommt vom Server als ISO-String z.B. "2026-05-26T00:00:00.000Z"
+    const normSessionDate = (v: any) => typeof v === 'string' ? v.slice(0, 10) : String(v).slice(0, 10);
+
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const result: { dateStr: string; label: string; lessons: any[] }[] = [];
     for (let i = 0; i < 14; i++) {
       const d = new Date(today); d.setDate(today.getDate() + i);
       const dow = d.getDay();
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = localDateStr(d); // ← lokale Zeit, kein UTC-Versatz
       const label = d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' });
       const lessons = schedules
         .filter((sc: any) => sc.day_of_week === dow)
         .map((sc: any) => {
           const sess = sessions.find((s: any) =>
             s.student_id === sc.student_id &&
-            (s.lesson_date?.toString().startsWith(dateStr) || String(s.lesson_date) === dateStr)
+            normSessionDate(s.lesson_date) === dateStr
           );
           return {
             studentId: sc.student_id,

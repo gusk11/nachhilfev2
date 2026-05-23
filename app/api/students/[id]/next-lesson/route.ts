@@ -40,8 +40,13 @@ export async function GET(
     nextDate.setDate(nextDate.getDate() + daysUntil);
     const dateStr = nextDate.toISOString().split('T')[0];
 
-    const session = sessions.find((s: any) => s.lesson_date?.toISOString?.()?.split('T')[0] === dateStr
-      || String(s.lesson_date) === dateStr);
+    // lesson_date kommt vom postgres-Treiber als Date-Objekt (UTC-Midnight)
+    const normDate = (v: any): string => {
+      if (!v) return '';
+      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      return String(v).slice(0, 10);
+    };
+    const session = sessions.find((s: any) => normDate(s.lesson_date) === dateStr);
 
     const effectiveTime = session?.start_time || schedule.start_time;
     const effectiveDuration = session?.duration_minutes || schedule.duration_minutes;
