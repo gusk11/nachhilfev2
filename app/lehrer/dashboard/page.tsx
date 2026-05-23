@@ -647,43 +647,37 @@ export default function TeacherDashboard() {
         {calendarDays.length === 0 ? (
           <p className="text-gray-500 text-sm">Noch keine Grundstunden eingetragen. Klicke bei einem Schüler auf <strong>⏰ Stunde</strong>.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-6">
-            {calendarDays.map(({ dateStr, label, lessons }) => (
-              <div key={dateStr}>
-                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</p>
-                <div className="space-y-2">
-                  {lessons.length === 0 ? (
-                    <div className="p-3 rounded-lg border border-red-300 bg-red-50">
-                      <p className="text-sm text-red-600 font-medium">Keine Termine</p>
-                    </div>
-                  ) : (
-                    lessons.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((lesson: any) => (
-                      <div
-                        key={lesson.studentId}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${lesson.isChanged ? 'bg-red-50 border-red-300' : 'bg-[#eef3fb] border-[#dce8f7]'}`}
-                      >
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">{lesson.studentName}</p>
-                          <p className={`text-sm ${lesson.isChanged ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                            {lesson.startTime} Uhr · {lesson.durationMinutes} Min.
-                            {lesson.isChanged && <span className="ml-1 text-xs">(Standard: {lesson.standardTime})</span>}
-                          </p>
-                          {lesson.notes && (
-                            <p className="text-xs text-gray-500 mt-0.5 italic">📝 {lesson.notes.slice(0, 60)}{lesson.notes.length > 60 ? '…' : ''}</p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => openSessionModal(lesson)}
-                          className="text-xs bg-[#032e65] text-white px-3 py-1.5 rounded-lg hover:bg-[#021d40] transition flex-shrink-0 ml-3"
-                        >
-                          ✏️ Bearbeiten
-                        </button>
+          <div className="space-y-3">
+            {calendarDays.map(({ dateStr, label, lessons }) =>
+              lessons.length > 0 ? (
+                <div key={dateStr}>
+                  <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</p>
+                  {lessons.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((lesson: any) => (
+                    <div
+                      key={`${dateStr}-${lesson.studentId}`}
+                      className={`flex items-center justify-between p-3 rounded-lg border mb-2 ${lesson.isChanged ? 'bg-red-50 border-red-300' : 'bg-[#eef3fb] border-[#dce8f7]'}`}
+                    >
+                      <div>
+                        <p className="font-semibold text-gray-800 text-sm">{lesson.studentName}</p>
+                        <p className={`text-sm ${lesson.isChanged ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                          {lesson.startTime} Uhr · {lesson.durationMinutes} Min.
+                          {lesson.isChanged && <span className="ml-1 text-xs">(Standard: {lesson.standardTime})</span>}
+                        </p>
+                        {lesson.notes && (
+                          <p className="text-xs text-gray-500 mt-0.5 italic">📝 {lesson.notes.slice(0, 60)}{lesson.notes.length > 60 ? '…' : ''}</p>
+                        )}
                       </div>
-                    ))
-                  )}
+                      <button
+                        onClick={() => openSessionModal(lesson)}
+                        className="text-xs bg-[#032e65] text-white px-3 py-1.5 rounded-lg hover:bg-[#021d40] transition flex-shrink-0 ml-3"
+                      >
+                        ✏️ Bearbeiten
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
+              ) : null
+            )}
           </div>
               )}
             </div>
