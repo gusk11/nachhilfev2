@@ -280,7 +280,7 @@ export default function TeacherDashboard() {
         body: JSON.stringify({ student_id: scheduleModal.student.id, day_of_week: schedDay, start_time: schedTime, duration_minutes: schedDuration }),
       });
       if (res.ok) { setScheduleModal(null); fetchData(); }
-      else alert('Fehler beim Speichern');
+      else { const d = await res.json(); alert('Fehler: ' + (d.error || res.status)); }
     } catch { alert('Netzwerkfehler'); }
     finally { setSchedSaving(false); }
   };
@@ -321,7 +321,7 @@ export default function TeacherDashboard() {
         }),
       });
       if (res.ok) { setSessionModal(null); fetchData(); }
-      else alert('Fehler beim Speichern');
+      else { const d = await res.json(); alert('Fehler: ' + (d.error || res.status)); }
     } catch { alert('Netzwerkfehler'); }
     finally { setSessSaving(false); }
   };
