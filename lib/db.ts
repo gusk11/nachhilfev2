@@ -35,6 +35,9 @@ export async function initializeDB() {
     `;
 
     await sql`ALTER TABLE results ADD COLUMN IF NOT EXISTS answers JSONB`;
+    await sql`ALTER TABLE student_files ADD COLUMN IF NOT EXISTS display_name VARCHAR(255)`;
+    await sql`ALTER TABLE student_files ADD COLUMN IF NOT EXISTS note TEXT`;
+    await sql`ALTER TABLE student_files ADD COLUMN IF NOT EXISTS uploaded_by VARCHAR(10) DEFAULT 'teacher'`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS student_files (
@@ -191,10 +194,17 @@ export async function getStudentFilesForTeacher(studentId: number) {
   return rows;
 }
 
-export async function createStudentFile(studentId: number, filename: string, fileKey: string) {
+export async function createStudentFile(
+  studentId: number,
+  filename: string,
+  fileKey: string,
+  displayName?: string,
+  note?: string,
+  uploadedBy: 'teacher' | 'student' = 'teacher'
+) {
   const rows = await sql`
-    INSERT INTO student_files (student_id, filename, file_key)
-    VALUES (${studentId}, ${filename}, ${fileKey})
+    INSERT INTO student_files (student_id, filename, file_key, display_name, note, uploaded_by)
+    VALUES (${studentId}, ${filename}, ${fileKey}, ${displayName || null}, ${note || null}, ${uploadedBy})
     RETURNING *
   `;
   return rows[0];

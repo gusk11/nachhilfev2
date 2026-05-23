@@ -39,6 +39,15 @@ export async function GET() {
   }
 
   try {
+    await sql`ALTER TABLE student_files ADD COLUMN IF NOT EXISTS display_name VARCHAR(255)`;
+    await sql`ALTER TABLE student_files ADD COLUMN IF NOT EXISTS note TEXT`;
+    await sql`ALTER TABLE student_files ADD COLUMN IF NOT EXISTS uploaded_by VARCHAR(10) DEFAULT 'teacher'`;
+    result.student_files_columns = 'ok';
+  } catch (e) {
+    result.student_files_columns = String(e);
+  }
+
+  try {
     const check = await sql`SELECT COUNT(*) FROM student_files`;
     result.student_files_rows = String(check[0].count);
   } catch (e) {

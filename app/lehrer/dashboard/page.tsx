@@ -20,6 +20,9 @@ interface Result {
 interface StudentFile {
   id: number;
   filename: string;
+  display_name: string | null;
+  note: string | null;
+  uploaded_by: 'teacher' | 'student';
   uploaded_at: string;
   seen: boolean;
   completed: boolean;
@@ -481,30 +484,42 @@ export default function TeacherDashboard() {
               ) : (
                 <div className="space-y-2">
                   {studentFiles.map((f) => (
-                    <div key={f.id} className="flex items-center gap-3 p-3 bg-[#eef3fb] rounded-lg border border-[#dce8f7]">
-                      <span className="text-red-500 text-lg flex-shrink-0">📄</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{f.filename}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(f.uploaded_at).toLocaleDateString('de-DE')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span
-                          title="Gesehen"
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${f.seen ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}
-                        >
-                          {f.seen ? '👁 Gesehen' : '👁 –'}
-                        </span>
-                        <span
-                          title="Erledigt"
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${f.completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}
-                        >
-                          {f.completed ? '✓ Erledigt' : '✓ –'}
-                        </span>
+                    <div key={f.id} className="p-3 bg-[#eef3fb] rounded-lg border border-[#dce8f7]">
+                      <div className="flex items-start gap-3">
+                        <span className="text-red-500 text-lg flex-shrink-0 mt-0.5">📄</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 break-words">
+                            {f.display_name || f.filename}
+                          </p>
+                          {f.note && (
+                            <p className="text-xs text-gray-500 mt-0.5 break-words">{f.note}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                              f.uploaded_by === 'teacher'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {f.uploaded_by === 'teacher' ? '🎓 Lehrer' : '👤 Schüler'}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {new Date(f.uploaded_at).toLocaleDateString('de-DE')}
+                            </span>
+                            <span
+                              className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${f.seen ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400'}`}
+                            >
+                              {f.seen ? '👁 Gesehen' : '👁 –'}
+                            </span>
+                            <span
+                              className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${f.completed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}
+                            >
+                              {f.completed ? '✓ Erledigt' : '✓ –'}
+                            </span>
+                          </div>
+                        </div>
                         <button
                           onClick={() => handleDeleteFile(f.id)}
-                          className="text-red-400 hover:text-red-600 text-sm ml-1"
+                          className="text-red-400 hover:text-red-600 text-sm flex-shrink-0"
                           title="Löschen"
                         >
                           🗑

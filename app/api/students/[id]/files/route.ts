@@ -45,13 +45,18 @@ export async function POST(
   let step = 'auth';
   try {
     const decoded = await getAuth();
-    if (!decoded || decoded.role !== 'teacher') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!decoded) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     step = 'params';
     const { id } = await params;
     const studentId = parseInt(id);
+
+    // Lehrer darf für jeden Schüler hochladen; Schüler nur für sich selbst
+    const isTeacher = decoded.role === 'teacher';
+    const isOwnStudent = decoded.role === 'student' && decoded.studentId === studentId;
+    if (!isTeacher && !isOwnStudent) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     step = 'getStudent';
     const student = await getStudent(studentId);
@@ -64,12 +69,15 @@ export async function POST(
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       return NextResponse.json({ error: 'Nur PDF-Dateien erlaubt' }, { status: 400 });
     }
+    const displayName = (formData.get('display_name') as string | null)?.trim() || undefined;
+    const note = (formData.get('note') as string | null)?.trim() || undefined;
+    const uploadedBy: 'teacher' | 'student' = isTeacher ? 'teacher' : 'student';
 
     step = 'blobUpload';
     const fileKey = await uploadStudentFile(file, studentId, file.name);
 
     step = 'dbInsert';
-    const record = await createStudentFile(studentId, file.name, fileKey);
+    const record = await createStudentFile(studentId, file.name, fileKey, displayName, note, uploadedBy);
     return NextResponse.json(record, { status: 201 });
   } catch (error) {
     console.error('Upload file error at step', step, error);

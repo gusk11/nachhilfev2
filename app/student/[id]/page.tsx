@@ -22,6 +22,9 @@ interface Result {
 interface StudentFile {
   id: number;
   filename: string;
+  display_name: string | null;
+  note: string | null;
+  uploaded_by: 'teacher' | 'student';
   uploaded_at: string;
   seen: boolean;
   completed: boolean;
@@ -60,6 +63,11 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [detailResult, setDetailResult] = useState<DetailResult | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadName, setUploadName] = useState('');
+  const [uploadNote, setUploadNote] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -114,6 +122,35 @@ export default function StudentDashboard() {
     } catch {
       // revert on error
       fetchData();
+    }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile || !uploadName.trim()) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('display_name', uploadName.trim());
+      if (uploadNote.trim()) formData.append('note', uploadNote.trim());
+      const res = await fetch(`/api/students/${studentId}/files`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        setUploadFile(null);
+        setUploadName('');
+        setUploadNote('');
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert('Fehler: ' + (data.error || res.status));
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -195,25 +232,79 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Dateien-Sektion */}
-        {files.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📎 Verfügbare Dateien</h2>
+        {/* Dokumente-Sektion */}
+        <div>
+          <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📎 Dokumente</h2>
+
+          {/* Upload-Formular */}
+          <form onSubmit={handleUpload} className="bg-white rounded-lg shadow p-4 mb-6 border border-dashed border-[#032e65]/30">
+            <p className="text-sm font-semibold text-[#032e65] mb-3">Dokument hochladen</p>
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={uploadName}
+                onChange={(e) => setUploadName(e.target.value)}
+                placeholder="Name des Dokuments *"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
+                required
+              />
+              <input
+                type="text"
+                value={uploadNote}
+                onChange={(e) => setUploadNote(e.target.value)}
+                placeholder="Notiz (optional)"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
+              />
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  className="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={uploading || !uploadFile || !uploadName.trim()}
+                  className="bg-[#032e65] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#021d40] disabled:opacity-50 whitespace-nowrap"
+                >
+                  {uploading ? '...' : 'Hochladen'}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* Dateiliste */}
+          {files.length === 0 ? (
+            <p className="text-gray-500 text-sm">Noch keine Dokumente vorhanden</p>
+          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {files.map((f) => (
                 <div
                   key={f.id}
                   className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500"
                 >
-                  <div className="flex items-start gap-3 mb-3">
+                  <div className="flex items-start gap-3 mb-2">
                     <span className="text-2xl flex-shrink-0">📄</span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 text-sm leading-tight break-words">
-                        {f.filename}
+                      <p className="font-semibold text-gray-900 text-sm leading-tight break-words">
+                        {f.display_name || f.filename}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {new Date(f.uploaded_at).toLocaleDateString('de-DE')}
-                      </p>
+                      {f.note && (
+                        <p className="text-xs text-gray-500 mt-0.5 break-words">{f.note}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                          f.uploaded_by === 'teacher'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}>
+                          {f.uploaded_by === 'teacher' ? '🎓 Lehrer' : '👤 Schüler'}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(f.uploaded_at).toLocaleDateString('de-DE')}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -251,8 +342,8 @@ export default function StudentDashboard() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Detail-Modal */}
