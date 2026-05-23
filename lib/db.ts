@@ -58,9 +58,12 @@ export async function initializeDB() {
         start_time VARCHAR(5),
         duration_minutes INTEGER,
         notes TEXT,
+        theme VARCHAR(255),
         UNIQUE(student_id, lesson_date)
       )
     `;
+
+    await sql`ALTER TABLE lesson_sessions ADD COLUMN IF NOT EXISTS theme VARCHAR(255)`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS student_files (
@@ -288,13 +291,14 @@ export async function deleteLessonSchedule(studentId: number) {
 
 export async function upsertLessonSession(
   studentId: number, lessonDate: string,
-  startTime: string | null, durationMinutes: number | null, notes: string | null
+  startTime: string | null, durationMinutes: number | null, notes: string | null,
+  theme: string | null = null
 ) {
   const rows = await sql`
-    INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes)
-    VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes})
+    INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes, theme)
+    VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes}, ${theme})
     ON CONFLICT (student_id, lesson_date) DO UPDATE SET
-      start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}
+      start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}, theme = ${theme}
     RETURNING *
   `;
   return rows[0];
@@ -324,13 +328,14 @@ export async function updateLessonSession(
   lessonDate: string,
   startTime: string | null,
   durationMinutes: number | null,
-  notes: string | null
+  notes: string | null,
+  theme: string | null = null
 ) {
   try {
     // Direkt updaten — wenn Konflikt wegen UNIQUE(student_id, lesson_date), dann DELETE + INSERT
     const updated = await sql`
       UPDATE lesson_sessions
-      SET lesson_date = ${lessonDate}, start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}
+      SET lesson_date = ${lessonDate}, start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}, theme = ${theme}
       WHERE id = ${id}
       RETURNING *
     `;
@@ -350,8 +355,8 @@ export async function updateLessonSession(
       await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
 
       const rows = await sql`
-        INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes)
-        VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes})
+        INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes, theme)
+        VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes}, ${theme})
         RETURNING *
       `;
       return rows[0];

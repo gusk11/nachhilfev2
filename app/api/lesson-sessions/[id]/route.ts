@@ -18,7 +18,7 @@ export async function PUT(
   try {
     if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { id } = await params;
-    const { lesson_date, start_time, duration_minutes, notes } = await req.json();
+    const { lesson_date, start_time, duration_minutes, notes, theme } = await req.json();
     if (!lesson_date) {
       return NextResponse.json({ error: 'lesson_date erforderlich' }, { status: 400 });
     }
@@ -27,7 +27,8 @@ export async function PUT(
       lesson_date,
       start_time || null,
       duration_minutes ? parseInt(duration_minutes) : null,
-      notes || null
+      notes || null,
+      theme || null
     );
     return NextResponse.json(record);
   } catch (e) {

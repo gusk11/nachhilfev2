@@ -24,7 +24,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const { student_id, lesson_date, start_time, duration_minutes, notes } = await req.json();
+    const { student_id, lesson_date, start_time, duration_minutes, notes, theme } = await req.json();
     if (!student_id || !lesson_date) {
       return NextResponse.json({ error: 'student_id und lesson_date erforderlich' }, { status: 400 });
     }
@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
       student_id, lesson_date,
       start_time || null,
       duration_minutes ? parseInt(duration_minutes) : null,
-      notes || null
+      notes || null,
+      theme || null
     );
     return NextResponse.json(record);
   } catch (e) {

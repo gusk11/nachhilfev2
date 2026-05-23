@@ -108,6 +108,7 @@ export default function TeacherDashboard() {
   const [sessTime, setSessTime] = useState('');
   const [sessDuration, setSessDuration] = useState('');
   const [sessNotes, setSessNotes] = useState('');
+  const [sessTheme, setSessTheme] = useState('');
   const [sessSaving, setSessSaving] = useState(false);
 
   const [extraSessionModal, setExtraSessionModal] = useState<{
@@ -448,6 +449,7 @@ export default function TeacherDashboard() {
     setSessTime(lesson.startTime || lesson.standardTime);
     setSessDuration(lesson.durationMinutes ? String(lesson.durationMinutes) : String(lesson.standardDuration));
     setSessNotes(lesson.notes || '');
+    setSessTheme(lesson.theme || '');
 
     console.log('✅ Modal State gesetzt mit Zeit:', lesson.startTime || lesson.standardTime);
   };
@@ -461,6 +463,7 @@ export default function TeacherDashboard() {
         start_time: sessTime || null,
         duration_minutes: sessDuration ? parseInt(sessDuration) : null,
         notes: sessNotes || null,
+        theme: sessTheme || null,
       };
 
       console.log('📤 Session Update:', {
@@ -940,17 +943,12 @@ export default function TeacherDashboard() {
                                     <button
                                       key={idx}
                                       onClick={() => openSessionModal(lesson)}
-                                      className={`w-full text-left p-1.5 rounded text-xs truncate font-medium transition hover:shadow-md ${
-                                        lesson.isExtra
-                                          ? 'bg-purple-100 text-purple-700 border border-purple-300'
-                                          : 'bg-blue-100 text-blue-700 border border-blue-300'
-                                      }`}
+                                      className="w-full text-left p-1.5 rounded text-xs truncate font-medium transition hover:shadow-md bg-blue-100 text-blue-700 border border-blue-300"
                                       title={`${lesson.studentName} ${lesson.startTime} (${lesson.durationMinutes}min)`}
                                     >
                                       <span className="text-xs">{lesson.startTime}</span>
                                       <br />
                                       <span className="text-[10px] opacity-90 truncate">{lesson.studentName}</span>
-                                      {lesson.isExtra && <span className="text-[9px]"> ⭐</span>}
                                     </button>
                                   ))
                                 ) : (
@@ -1389,6 +1387,14 @@ export default function TeacherDashboard() {
                 </label>
                 <input type="number" min={15} max={240} step={5} value={sessDuration} onChange={(e) => setSessDuration(e.target.value)}
                   placeholder={String(sessionModal.standardDuration)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
+              </div>
+
+              {/* Thema */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">📚 Thema / Kapitel</label>
+                <input type="text" value={sessTheme} onChange={(e) => setSessTheme(e.target.value)}
+                  placeholder="z.B. Pythagoras, Quadratische Gleichungen"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
               </div>
 
