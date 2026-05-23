@@ -71,6 +71,18 @@ export default function TeacherDashboard() {
   const [newName, setNewName] = useState('');
   const [nameSaving, setNameSaving] = useState(false);
 
+  // Accordion sections
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    upload: true,
+    results: false,
+    students: false,
+    schedule: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   // Stundenplan
   const [schedules, setSchedules] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -425,9 +437,44 @@ export default function TeacherDashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+        {/* Accordion Navigation */}
+        <div className="bg-white rounded-lg shadow-lg mb-8 overflow-hidden">
+          <div className="divide-y divide-gray-200">
+            <button
+              onClick={() => toggleSection('upload')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>📤 Quiz hochladen</span>
+              <span className={`transform transition ${openSections.upload ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            <button
+              onClick={() => toggleSection('results')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>📊 Ergebnisse</span>
+              <span className={`transform transition ${openSections.results ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            <button
+              onClick={() => toggleSection('students')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>👥 Registrierte Schüler</span>
+              <span className={`transform transition ${openSections.students ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            <button
+              onClick={() => toggleSection('schedule')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>📅 Stundenplan</span>
+              <span className={`transform transition ${openSections.schedule ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="space-y-8">
+          {openSections.upload && (
+            <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📤 Quiz hochladen</h2>
               <form onSubmit={handleFileUpload} className="space-y-4">
                 <div>
@@ -484,7 +531,9 @@ export default function TeacherDashboard() {
                 </button>
               </form>
             </div>
+          )}
 
+          {openSections.results && (
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📊 Ergebnisse</h2>
               <p className="text-sm text-gray-500 mb-3">Zeile anklicken für Einzelauswertung</p>
@@ -522,10 +571,11 @@ export default function TeacherDashboard() {
                 )}
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👥 Registrierte Schüler</h2>
+          {openSections.students && (
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👥 Registrierte Schüler</h2>
             <div className="space-y-2">
               {students.map((s) => {
                 const sc = schedules.find((x: any) => x.student_id === s.id);
@@ -588,12 +638,11 @@ export default function TeacherDashboard() {
                 <p className="text-gray-500">Noch keine Schüler registriert</p>
               )}
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Stundenplan-Kalender */}
-        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – nächste 2 Wochen</h2>
+          {openSections.schedule && (
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – nächste 2 Wochen</h2>
         {calendarDays.length === 0 ? (
           <p className="text-gray-500 text-sm">Noch keine Grundstunden eingetragen. Klicke bei einem Schüler auf <strong>⏰ Stunde</strong>.</p>
         ) : (
@@ -635,7 +684,9 @@ export default function TeacherDashboard() {
               </div>
             ))}
           </div>
-        )}
+              )}
+            </div>
+          )}
         </div>
       </div>
 

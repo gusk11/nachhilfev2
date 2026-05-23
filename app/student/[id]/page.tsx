@@ -80,6 +80,17 @@ export default function StudentDashboard() {
   const [uploadNote, setUploadNote] = useState('');
   const [uploading, setUploading] = useState(false);
 
+  // Accordion sections
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    quizzes: true,
+    results: false,
+    documents: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   useEffect(() => {
     fetchData();
   }, [studentId]);
@@ -195,11 +206,11 @@ export default function StudentDashboard() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-6 py-8">
 
         {/* Nächste Stunde */}
         {nextLesson && (
-          <div className={`rounded-lg shadow-lg p-5 border-l-4 ${nextLesson.is_changed ? 'bg-red-50 border-red-500' : 'bg-white border-[#032e65]'}`}>
+          <div className={`rounded-lg shadow-lg p-5 border-l-4 mb-8 ${nextLesson.is_changed ? 'bg-red-50 border-red-500' : 'bg-white border-[#032e65]'}`}>
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">📅 Nächste Stunde</p>
@@ -226,9 +237,38 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📝 Verfügbare Quizzes</h2>
+        {/* Accordion Navigation */}
+        <div className="bg-white rounded-lg shadow-lg mb-8 overflow-hidden">
+          <div className="divide-y divide-gray-200">
+            <button
+              onClick={() => toggleSection('quizzes')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>📝 Verfügbare Quizzes</span>
+              <span className={`transform transition ${openSections.quizzes ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            <button
+              onClick={() => toggleSection('results')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>📈 Ergebnisse</span>
+              <span className={`transform transition ${openSections.results ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            <button
+              onClick={() => toggleSection('documents')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>📎 Dokumente</span>
+              <span className={`transform transition ${openSections.documents ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Content Sections */}
+        <div className="space-y-8">
+          {openSections.quizzes && (
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📝 Verfügbare Quizzes</h2>
             <div className="space-y-3">
               {quizzes.length > 0 ? (
                 quizzes.map((quiz) => (
@@ -247,10 +287,11 @@ export default function StudentDashboard() {
                 <p className="text-gray-500">Noch keine Quizzes verfügbar</p>
               )}
             </div>
-          </div>
+          )}
 
-          <div>
-            <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📈 Ergebnisse</h2>
+          {openSections.results && (
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📈 Ergebnisse</h2>
             <p className="text-sm text-gray-500 mb-3">Karte anklicken für Einzelauswertung</p>
             <div className="space-y-3">
               {results.length > 0 ? (
@@ -275,12 +316,11 @@ export default function StudentDashboard() {
                 <p className="text-gray-500">Noch keine Ergebnisse</p>
               )}
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Dokumente-Sektion */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📎 Dokumente</h2>
+          {openSections.documents && (
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📎 Dokumente</h2>
 
           {/* Upload-Formular */}
           <form onSubmit={handleUpload} className="bg-white rounded-lg shadow p-4 mb-6 border border-dashed border-[#032e65]/30">
@@ -388,6 +428,7 @@ export default function StudentDashboard() {
                 </div>
               ))}
             </div>
+            )}
           )}
         </div>
       </div>
