@@ -102,7 +102,7 @@ export default function TeacherDashboard() {
   const [schedDuration, setSchedDuration] = useState(60);
   const [schedSaving, setSchedSaving] = useState(false);
   const [sessionModal, setSessionModal] = useState<{
-    studentId: number; studentName: string; date: string;
+    studentId: number; studentName: string; date: string; originalDate: string;
     standardTime: string; standardDuration: number; sessionId: number | null;
     existingTime: string; existingDuration: string; existingNotes: string;
     standardDayOfWeek: number;
@@ -335,15 +335,15 @@ export default function TeacherDashboard() {
   const openSessionModal = (lesson: any) => {
     setSessionModal({
       studentId: lesson.studentId, studentName: lesson.studentName,
-      date: lesson.dateStr, standardTime: lesson.standardTime,
+      date: lesson.dateStr, originalDate: lesson.dateStr, standardTime: lesson.standardTime,
       standardDuration: lesson.standardDuration, sessionId: lesson.sessionId,
       standardDayOfWeek: lesson.standardDayOfWeek,
-      existingTime: lesson.isChanged ? lesson.startTime : '',
-      existingDuration: lesson.sessionId && lesson.durationMinutes !== lesson.standardDuration ? String(lesson.durationMinutes) : '',
+      existingTime: lesson.startTime || '',
+      existingDuration: lesson.durationMinutes ? String(lesson.durationMinutes) : '',
       existingNotes: lesson.notes || '',
     });
-    setSessTime(lesson.isChanged ? lesson.startTime : '');
-    setSessDuration(lesson.sessionId && lesson.durationMinutes !== lesson.standardDuration ? String(lesson.durationMinutes) : '');
+    setSessTime(lesson.startTime || lesson.standardTime);
+    setSessDuration(lesson.durationMinutes ? String(lesson.durationMinutes) : String(lesson.standardDuration));
     setSessNotes(lesson.notes || '');
   };
 
@@ -351,6 +351,13 @@ export default function TeacherDashboard() {
     if (!sessionModal) return;
     setSessSaving(true);
     try {
+      // Wenn sich das Datum geändert hat und es eine alte Session gibt, erst die alte löschen
+      if (sessionModal.sessionId && sessionModal.date !== sessionModal.originalDate) {
+        await fetch(`/api/lesson-sessions/${sessionModal.sessionId}`, {
+          method: 'DELETE', credentials: 'include'
+        });
+      }
+
       const res = await fetch('/api/lesson-sessions', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
