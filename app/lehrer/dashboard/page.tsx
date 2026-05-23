@@ -120,6 +120,15 @@ export default function TeacherDashboard() {
   const [extraTheme, setExtraTheme] = useState('');
   const [extraSaving, setExtraSaving] = useState(false);
 
+  // Neuer Schüler Modal
+  const [newStudentModal, setNewStudentModal] = useState(false);
+  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentPin, setNewStudentPin] = useState('');
+  const [newStudentDay, setNewStudentDay] = useState(1);
+  const [newStudentTime, setNewStudentTime] = useState('15:00');
+  const [newStudentDuration, setNewStudentDuration] = useState(60);
+  const [newStudentSaving, setNewStudentSaving] = useState(false);
+
   // Dateien-Modal
   const [filesModal, setFilesModal] = useState<{ id: number; name: string } | null>(null);
   const [studentFiles, setStudentFiles] = useState<StudentFile[]>([]);
@@ -428,6 +437,45 @@ export default function TeacherDashboard() {
       else { const d = await res.json(); alert('Fehler: ' + (d.error || res.status)); }
     } catch { alert('Netzwerkfehler'); }
     finally { setSchedSaving(false); }
+  };
+
+  const handleAddStudent = async () => {
+    if (!newStudentName.trim() || !newStudentPin.trim()) {
+      alert('Name und PIN erforderlich');
+      return;
+    }
+    setNewStudentSaving(true);
+    try {
+      const res = await fetch('/api/students/create', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newStudentName, pin: newStudentPin }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        alert('Fehler: ' + (d.error || res.status));
+        setNewStudentSaving(false);
+        return;
+      }
+      const student = await res.json();
+      // Grundstunde anlegen, falls Tag > 0
+      if (newStudentDay > 0) {
+        await fetch('/api/lesson-schedules', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: student.id, day_of_week: newStudentDay, start_time: newStudentTime, duration_minutes: newStudentDuration }),
+        });
+      }
+      setNewStudentModal(false);
+      setNewStudentName('');
+      setNewStudentPin('');
+      setNewStudentDay(1);
+      setNewStudentTime('15:00');
+      setNewStudentDuration(60);
+      alert(`Schüler "${newStudentName}" hinzugefügt!`);
+      fetchData();
+    } catch { alert('Netzwerkfehler'); }
+    finally { setNewStudentSaving(false); }
   };
 
   const handleDeleteSchedule = async (studentId: number) => {
@@ -828,6 +876,12 @@ export default function TeacherDashboard() {
                 className="bg-white rounded-lg shadow-lg p-6"
               >
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👥 Registrierte Schüler</h2>
+              <button
+                onClick={() => setNewStudentModal(true)}
+                className="mb-6 w-full bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition"
+              >
+                ➕ Neuer Schüler
+              </button>
             <div className="space-y-2">
               {students.map((s) => {
                 const sc = schedules.find((x: any) => x.student_id === s.id);
@@ -1795,6 +1849,110 @@ export default function TeacherDashboard() {
                   )}
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Neuer Schüler Modal */}
+      <AnimatePresence>
+        {newStudentModal && (
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setNewStudentModal(false)}
+          >
+            <motion.div
+              variants={modalContentVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-[#032e65]">➕ Neuer Schüler</h2>
+                  <button onClick={() => setNewStudentModal(false)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={newStudentName}
+                      onChange={(e) => setNewStudentName(e.target.value)}
+                      placeholder="z.B. Max Müller"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">PIN</label>
+                    <input
+                      type="text"
+                      value={newStudentPin}
+                      onChange={(e) => setNewStudentPin(e.target.value)}
+                      placeholder="z.B. 1234"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Grundstunde - Wochentag</label>
+                    <select
+                      value={newStudentDay}
+                      onChange={(e) => setNewStudentDay(parseInt(e.target.value))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
+                    >
+                      <option value={0}>Keine Grundstunde</option>
+                      <option value={1}>Montag</option>
+                      <option value={2}>Dienstag</option>
+                      <option value={3}>Mittwoch</option>
+                      <option value={4}>Donnerstag</option>
+                      <option value={5}>Freitag</option>
+                      <option value={6}>Samstag</option>
+                      <option value={0}>Sonntag</option>
+                    </select>
+                  </div>
+
+                  {newStudentDay > 0 && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                        <input
+                          type="time"
+                          value={newStudentTime}
+                          onChange={(e) => setNewStudentTime(e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Dauer (Minuten)</label>
+                        <input
+                          type="number"
+                          value={newStudentDuration}
+                          onChange={(e) => setNewStudentDuration(parseInt(e.target.value) || 60)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <button
+                    onClick={handleAddStudent}
+                    disabled={newStudentSaving || !newStudentName.trim() || !newStudentPin.trim()}
+                    className="w-full bg-[#032e65] text-white py-2 rounded-lg font-medium hover:bg-[#021d40] transition disabled:opacity-50"
+                  >
+                    {newStudentSaving ? 'Speichert...' : 'Schüler hinzufügen'}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
