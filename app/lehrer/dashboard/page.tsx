@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface Student {
   id: number;
@@ -738,7 +737,7 @@ export default function TeacherDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {lessons.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((lesson: any, idx: number) => {
+                    {lessons.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((lesson: any) => {
                       const lessonKey = `${dateStr}-${lesson.studentId}`;
                       const selectedActivity = completedSessions.get(lessonKey);
                       const activityCount = selectedActivity?.size || 0;
@@ -747,15 +746,8 @@ export default function TeacherDashboard() {
                       const isPast = isPastLesson(dateStr, lesson.startTime);
 
                       return (
-                        <motion.div
-                          key={lessonKey}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.05, duration: 0.3 }}
-                          className="space-y-2"
-                        >
-                          <motion.div
-                            layout
+                        <div key={lessonKey} className="space-y-2">
+                          <div
                             className={`flex items-center justify-between p-3 rounded-lg border ${
                               isFullyCompleted
                                 ? 'bg-green-50 border-green-300'
@@ -803,8 +795,8 @@ export default function TeacherDashboard() {
                                 {isFullyCompleted ? '✓ Erledigt' : `${activityCount}/${ACTIVITY_TYPES.length}`}
                               </button>
                             </div>
-                          </motion.div>
-                        </motion.div>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -819,24 +811,15 @@ export default function TeacherDashboard() {
       </div>
 
       {/* Dateien-Modal */}
-      <AnimatePresence>
-        {filesModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setFilesModal(null)}
+      {filesModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setFilesModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
             <div className="p-6">
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-xl font-bold text-[#032e65]">
@@ -917,30 +900,20 @@ export default function TeacherDashboard() {
                 </div>
               )}
             </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* Name-bearbeiten-Modal */}
-      <AnimatePresence>
-        {renameModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setRenameModal(null)}
+      {renameModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setRenameModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2, type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-800">Name bearbeiten</h2>
               <button onClick={() => setRenameModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
@@ -972,30 +945,14 @@ export default function TeacherDashboard() {
                 {nameSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* Grundstunde-Modal */}
-      <AnimatePresence>
-        {scheduleModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setScheduleModal(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2, type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
+      {scheduleModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setScheduleModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-800">⏰ Grundstunde – {scheduleModal.student.name}</h2>
               <button onClick={() => setScheduleModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
@@ -1034,30 +991,14 @@ export default function TeacherDashboard() {
                 {schedSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* Session-bearbeiten-Modal */}
-      <AnimatePresence>
-        {sessionModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setSessionModal(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
+      {sessionModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSessionModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
               <div className="flex justify-between items-center mb-1">
                 <h2 className="text-lg font-bold text-gray-800">✏️ Stunde bearbeiten</h2>
@@ -1177,30 +1118,20 @@ export default function TeacherDashboard() {
                 {sessSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* Activity Modal */}
-      <AnimatePresence>
-        {activityModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setActivityModal(null)}
+      {activityModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setActivityModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2, type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-800">Stunde erledigt</h2>
               <button onClick={() => setActivityModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
@@ -1209,30 +1140,12 @@ export default function TeacherDashboard() {
               Was wurde in der Stunde mit <span className="font-semibold">{activityModal.studentName}</span> erledigt?
             </p>
 
-            <motion.div
-              className="space-y-2 mb-6"
-              initial="hidden"
-              animate="show"
-              variants={{
-                hidden: { opacity: 0 },
-                show: {
-                  opacity: 1,
-                  transition: {
-                    staggerChildren: 0.05,
-                    delayChildren: 0.1,
-                  },
-                },
-              }}
-            >
+            <div className="space-y-2 mb-6">
               {ACTIVITY_TYPES.map(activity => {
                 const isSelected = selectedActivities.has(activity.id);
                 return (
-                  <motion.button
+                  <button
                     key={activity.id}
-                    variants={{
-                      hidden: { opacity: 0, x: -20 },
-                      show: { opacity: 1, x: 0 },
-                    }}
                     onClick={() => {
                       const newSet = new Set(selectedActivities);
                       if (isSelected) {
@@ -1242,8 +1155,6 @@ export default function TeacherDashboard() {
                       }
                       setSelectedActivities(newSet);
                     }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                     className={`w-full p-3 rounded-lg border-2 transition text-left font-medium ${
                       isSelected
                         ? 'border-green-500 bg-green-50 text-green-800'
@@ -1253,10 +1164,10 @@ export default function TeacherDashboard() {
                     <span className="text-lg mr-2">{activity.emoji}</span>
                     {activity.label}
                     {isSelected && <span className="ml-2 float-right">✓</span>}
-                  </motion.button>
+                  </button>
                 );
               })}
-            </motion.div>
+            </div>
 
             <div className="flex gap-3">
               <button
@@ -1283,30 +1194,20 @@ export default function TeacherDashboard() {
                 Bestätigen
               </button>
             </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* PIN-Modal */}
-      <AnimatePresence>
-        {pinModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setPinModal(null)}
+      {pinModal && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setPinModal(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2, type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-800">PIN ändern</h2>
               <button onClick={() => setPinModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
@@ -1340,30 +1241,20 @@ export default function TeacherDashboard() {
                 {pinSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
 
       {/* Detail-Modal */}
-      <AnimatePresence>
-        {(detailLoading || detailResult) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-            onClick={() => setDetailResult(null)}
+      {(detailLoading || detailResult) && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          onClick={() => setDetailResult(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ duration: 0.3, type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
             {detailLoading ? (
               <div className="flex items-center justify-center py-16 text-gray-500">
                 Lädt Details...
@@ -1425,10 +1316,9 @@ export default function TeacherDashboard() {
                 )}
               </div>
             )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
