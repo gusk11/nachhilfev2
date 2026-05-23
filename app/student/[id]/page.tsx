@@ -80,11 +80,15 @@ export default function StudentDashboard() {
   const [uploadNote, setUploadNote] = useState('');
   const [uploading, setUploading] = useState(false);
 
+  const [studentClass, setStudentClass] = useState('');
+  const [studentSubject, setStudentSubject] = useState('');
+  const [savingInfo, setSavingInfo] = useState(false);
+
   // Accordion sections
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    info: false,
     quizzes: false,
     results: false,
-    documents: false,
     availableDocuments: false,
     uploadDocuments: false,
   });
@@ -243,6 +247,13 @@ export default function StudentDashboard() {
         <div className="bg-white rounded-lg shadow-lg mb-8 overflow-hidden">
           <div className="divide-y divide-gray-200">
             <button
+              onClick={() => toggleSection('info')}
+              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
+            >
+              <span>👤 Meine Informationen</span>
+              <span className={`transform transition ${openSections.info ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            <button
               onClick={() => toggleSection('quizzes')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
@@ -275,6 +286,56 @@ export default function StudentDashboard() {
 
         {/* Content Sections */}
         <div className="space-y-8">
+          {openSections.info && (
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👤 Meine Informationen</h2>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setSavingInfo(true);
+                try {
+                  const res = await fetch(`/api/students/${studentId}/info`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ class: studentClass, subject: studentSubject }),
+                  });
+                  if (res.ok) alert('Informationen gespeichert!');
+                } catch (err) {
+                  console.error(err);
+                } finally {
+                  setSavingInfo(false);
+                }
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Aktuelle Klasse</label>
+                  <input
+                    type="text"
+                    value={studentClass}
+                    onChange={(e) => setStudentClass(e.target.value)}
+                    placeholder="z.B. 8a, 10b"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Fach</label>
+                  <input
+                    type="text"
+                    value={studentSubject}
+                    onChange={(e) => setStudentSubject(e.target.value)}
+                    placeholder="z.B. Mathematik, Englisch"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-gray-900"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingInfo}
+                  className="bg-[#032e65] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#021d40] disabled:opacity-50 transition"
+                >
+                  {savingInfo ? 'Speichert...' : 'Speichern'}
+                </button>
+              </form>
+            </div>
+          )}
+
           {openSections.quizzes && (
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📝 Verfügbare Quizzes</h2>
