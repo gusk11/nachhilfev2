@@ -117,6 +117,7 @@ export default function TeacherDashboard() {
   const [extraTime, setExtraTime] = useState('15:00');
   const [extraDuration, setExtraDuration] = useState('60');
   const [extraNotes, setExtraNotes] = useState('');
+  const [extraTheme, setExtraTheme] = useState('');
   const [extraSaving, setExtraSaving] = useState(false);
 
   // Dateien-Modal
@@ -535,6 +536,7 @@ export default function TeacherDashboard() {
         start_time: extraTime || null,
         duration_minutes: extraDuration ? parseInt(extraDuration) : null,
         notes: extraNotes || null,
+        theme: extraTheme || null,
       };
 
       const res = await fetch('/api/lesson-sessions', {
@@ -939,18 +941,55 @@ export default function TeacherDashboard() {
                               {/* Lektionen */}
                               <div className="flex-1 space-y-1 overflow-y-auto text-xs">
                                 {hasLessons ? (
-                                  day.lessons.map((lesson: any, idx) => (
-                                    <button
-                                      key={idx}
-                                      onClick={() => openSessionModal(lesson)}
-                                      className="w-full text-left p-1.5 rounded text-xs truncate font-medium transition hover:shadow-md bg-blue-100 text-blue-700 border border-blue-300"
-                                      title={`${lesson.studentName} ${lesson.startTime} (${lesson.durationMinutes}min)`}
-                                    >
-                                      <span className="text-xs">{lesson.startTime}</span>
-                                      <br />
-                                      <span className="text-[10px] opacity-90 truncate">{lesson.studentName}</span>
-                                    </button>
-                                  ))
+                                  day.lessons.map((lesson: any, idx) => {
+                                    const lessonKey = `${day.dateStr}-${lesson.studentId}`;
+                                    const actCount = completedSessions.get(lessonKey)?.size || 0;
+                                    const isFull = actCount === ACTIVITY_TYPES.length;
+                                    const isPartial = actCount > 0 && actCount < ACTIVITY_TYPES.length;
+
+                                    return (
+                                      <div key={idx} className="flex gap-1 items-center text-[9px] group">
+                                        <button
+                                          onClick={() => openSessionModal(lesson)}
+                                          className="flex-1 text-left p-1.5 rounded text-xs truncate font-medium transition hover:shadow-md bg-blue-100 text-blue-700 border border-blue-300"
+                                          title={`${lesson.studentName} ${lesson.startTime} (${lesson.durationMinutes}min) - Klick zum Bearbeiten`}
+                                        >
+                                          <span className="text-xs">{lesson.startTime}</span>
+                                          <br />
+                                          <span className="text-[10px] opacity-90 truncate">{lesson.studentName}</span>
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setActivityModal({ lessonKey, studentName: lesson.studentName });
+                                            setSelectedActivities(new Set(completedSessions.get(lessonKey) || []));
+                                          }}
+                                          className={`px-1.5 py-1 rounded text-[9px] font-semibold whitespace-nowrap transition ${
+                                            isFull
+                                              ? 'bg-green-500 text-white'
+                                              : isPartial
+                                              ? 'bg-orange-500 text-white'
+                                              : 'bg-red-500 text-white'
+                                          }`}
+                                          title="Stunde abhaken"
+                                        >
+                                          {isFull ? '✓' : `${actCount}`}
+                                        </button>
+                                        <button
+                                          onClick={async () => {
+                                            if (!confirm(`Stunde von ${lesson.studentName} löschen?`)) return;
+                                            if (lesson.sessionId) {
+                                              await fetch(`/api/lesson-sessions/${lesson.sessionId}`, { method: 'DELETE', credentials: 'include' });
+                                            }
+                                            fetchData();
+                                          }}
+                                          className="px-1 py-1 rounded bg-red-100 text-red-600 opacity-0 group-hover:opacity-100 transition font-medium whitespace-nowrap"
+                                          title="Stunde löschen"
+                                        >
+                                          🗑
+                                        </button>
+                                      </div>
+                                    );
+                                  })
                                 ) : (
                                   <p className="text-gray-400 text-center py-2">—</p>
                                 )}
@@ -1628,6 +1667,14 @@ export default function TeacherDashboard() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">⏱️ Dauer in Min.</label>
                 <input type="number" min={15} max={240} step={5} value={extraDuration} onChange={(e) => setExtraDuration(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
+              </div>
+
+              {/* Thema */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">📚 Thema / Kapitel (optional)</label>
+                <input type="text" value={extraTheme} onChange={(e) => setExtraTheme(e.target.value)}
+                  placeholder="z.B. Quadratische Gleichungen"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
               </div>
 
