@@ -773,21 +773,19 @@ export default function TeacherDashboard() {
                               >
                                 ✏️ Bearbeiten
                               </button>
-                              {isPast && (
-                                <button
-                                  onClick={() => {
-                                    setActivityModal({ lessonKey, studentName: lesson.studentName });
-                                    setSelectedActivities(new Set(completedSessions.get(lessonKey) || []));
-                                  }}
-                                  className={`text-xs px-3 py-1.5 rounded-lg transition font-medium ${
-                                    isCompleted
-                                      ? 'bg-green-500 text-white hover:bg-green-600'
-                                      : 'bg-orange-500 text-white hover:bg-orange-600'
-                                  }`}
-                                >
-                                  {isCompleted ? '✓ Erledigt' : 'Erledigt'}
-                                </button>
-                              )}
+                              <button
+                                onClick={() => {
+                                  setActivityModal({ lessonKey, studentName: lesson.studentName });
+                                  setSelectedActivities(new Set(completedSessions.get(lessonKey) || []));
+                                }}
+                                className={`text-xs px-3 py-1.5 rounded-lg transition font-medium ${
+                                  isCompleted
+                                    ? 'bg-green-500 text-white hover:bg-green-600'
+                                    : 'bg-orange-500 text-white hover:bg-orange-600'
+                                }`}
+                              >
+                                {isCompleted ? '✓ Erledigt' : 'Erledigt'}
+                              </button>
                             </div>
                           </div>
                         </div>
