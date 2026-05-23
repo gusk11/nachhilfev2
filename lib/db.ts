@@ -40,6 +40,29 @@ export async function initializeDB() {
     await sql`ALTER TABLE student_files ADD COLUMN IF NOT EXISTS uploaded_by VARCHAR(10) DEFAULT 'teacher'`;
 
     await sql`
+      CREATE TABLE IF NOT EXISTS lesson_schedules (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        day_of_week INTEGER NOT NULL,
+        start_time VARCHAR(5) NOT NULL,
+        duration_minutes INTEGER NOT NULL DEFAULT 60,
+        UNIQUE(student_id)
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS lesson_sessions (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        lesson_date DATE NOT NULL,
+        start_time VARCHAR(5),
+        duration_minutes INTEGER,
+        notes TEXT,
+        UNIQUE(student_id, lesson_date)
+      )
+    `;
+
+    await sql`
       CREATE TABLE IF NOT EXISTS student_files (
         id SERIAL PRIMARY KEY,
         student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -226,6 +249,78 @@ export async function upsertFileStatus(fileId: number, studentId: number, seen: 
     ON CONFLICT (file_id, student_id)
     DO UPDATE SET seen = ${seen}, completed = ${completed}, updated_at = CURRENT_TIMESTAMP
   `;
+}
+
+// ── Lesson Schedules ──────────────────────────────────────────────────────────
+
+export async function upsertLessonSchedule(
+  studentId: number, dayOfWeek: number, startTime: string, durationMinutes: number
+) {
+  const rows = await sql`
+    INSERT INTO lesson_schedules (student_id, day_of_week, start_time, duration_minutes)
+    VALUES (${studentId}, ${dayOfWeek}, ${startTime}, ${durationMinutes})
+    ON CONFLICT (student_id) DO UPDATE SET
+      day_of_week = ${dayOfWeek}, start_time = ${startTime}, duration_minutes = ${durationMinutes}
+    RETURNING *
+  `;
+  return rows[0];
+}
+
+export async function getAllLessonSchedules() {
+  const rows = await sql`
+    SELECT ls.*, s.name AS student_name
+    FROM lesson_schedules ls JOIN students s ON ls.student_id = s.id
+    ORDER BY s.name
+  `;
+  return rows;
+}
+
+export async function getLessonScheduleForStudent(studentId: number) {
+  const rows = await sql`SELECT * FROM lesson_schedules WHERE student_id = ${studentId}`;
+  return rows[0] || null;
+}
+
+export async function deleteLessonSchedule(studentId: number) {
+  await sql`DELETE FROM lesson_schedules WHERE student_id = ${studentId}`;
+}
+
+// ── Lesson Sessions ───────────────────────────────────────────────────────────
+
+export async function upsertLessonSession(
+  studentId: number, lessonDate: string,
+  startTime: string | null, durationMinutes: number | null, notes: string | null
+) {
+  const rows = await sql`
+    INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes)
+    VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes})
+    ON CONFLICT (student_id, lesson_date) DO UPDATE SET
+      start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}
+    RETURNING *
+  `;
+  return rows[0];
+}
+
+export async function getAllUpcomingLessonSessions() {
+  const rows = await sql`
+    SELECT ls.*, s.name AS student_name
+    FROM lesson_sessions ls JOIN students s ON ls.student_id = s.id
+    WHERE ls.lesson_date >= CURRENT_DATE
+    ORDER BY ls.lesson_date ASC
+  `;
+  return rows;
+}
+
+export async function getLessonSessionsForStudent(studentId: number) {
+  const rows = await sql`
+    SELECT * FROM lesson_sessions
+    WHERE student_id = ${studentId} AND lesson_date >= CURRENT_DATE
+    ORDER BY lesson_date ASC
+  `;
+  return rows;
+}
+
+export async function deleteLessonSession(id: number) {
+  await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
 }
 
 export async function getAllResults() {

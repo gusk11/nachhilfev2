@@ -48,6 +48,39 @@ export async function GET() {
   }
 
   try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS lesson_schedules (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        day_of_week INTEGER NOT NULL,
+        start_time VARCHAR(5) NOT NULL,
+        duration_minutes INTEGER NOT NULL DEFAULT 60,
+        UNIQUE(student_id)
+      )
+    `;
+    result.lesson_schedules = 'ok';
+  } catch (e) {
+    result.lesson_schedules = String(e);
+  }
+
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS lesson_sessions (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        lesson_date DATE NOT NULL,
+        start_time VARCHAR(5),
+        duration_minutes INTEGER,
+        notes TEXT,
+        UNIQUE(student_id, lesson_date)
+      )
+    `;
+    result.lesson_sessions = 'ok';
+  } catch (e) {
+    result.lesson_sessions = String(e);
+  }
+
+  try {
     const check = await sql`SELECT COUNT(*) FROM student_files`;
     result.student_files_rows = String(check[0].count);
   } catch (e) {

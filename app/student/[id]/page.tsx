@@ -19,6 +19,15 @@ interface Result {
   completed_at: string;
 }
 
+interface NextLesson {
+  date: string;
+  start_time: string;
+  duration_minutes: number;
+  standard_time: string;
+  notes: string | null;
+  is_changed: boolean;
+}
+
 interface StudentFile {
   id: number;
   filename: string;
@@ -64,6 +73,8 @@ export default function StudentDashboard() {
   const [detailResult, setDetailResult] = useState<DetailResult | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  const [nextLesson, setNextLesson] = useState<NextLesson | null>(null);
+
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadName, setUploadName] = useState('');
   const [uploadNote, setUploadNote] = useState('');
@@ -75,10 +86,11 @@ export default function StudentDashboard() {
 
   const fetchData = async () => {
     try {
-      const [quizzesRes, resultsRes, filesRes] = await Promise.all([
+      const [quizzesRes, resultsRes, filesRes, nextLessonRes] = await Promise.all([
         fetch(`/api/quizzes/student/${studentId}`),
         fetch('/api/results'),
         fetch(`/api/students/${studentId}/files`),
+        fetch(`/api/students/${studentId}/next-lesson`),
       ]);
 
       if (!quizzesRes.ok || !resultsRes.ok) {
@@ -90,6 +102,10 @@ export default function StudentDashboard() {
       const { results } = await resultsRes.json();
       setResults(results);
       if (filesRes.ok) setFiles(await filesRes.json());
+      if (nextLessonRes.ok) {
+        const nlData = await nextLessonRes.json();
+        if (nlData.next_lesson) setNextLesson(nlData.next_lesson);
+      }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -180,6 +196,36 @@ export default function StudentDashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+        {/* Nächste Stunde */}
+        {nextLesson && (
+          <div className={`rounded-lg shadow-lg p-5 border-l-4 ${nextLesson.is_changed ? 'bg-red-50 border-red-500' : 'bg-white border-[#032e65]'}`}>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">📅 Nächste Stunde</p>
+                <p className={`text-xl font-bold ${nextLesson.is_changed ? 'text-red-700' : 'text-[#032e65]'}`}>
+                  {new Date(nextLesson.date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </p>
+                <p className={`text-lg font-semibold mt-0.5 ${nextLesson.is_changed ? 'text-red-600' : 'text-gray-700'}`}>
+                  {nextLesson.start_time} Uhr &middot; {nextLesson.duration_minutes} Min.
+                  {nextLesson.is_changed && (
+                    <span className="ml-2 text-sm font-normal text-red-500">(geändert von {nextLesson.standard_time} Uhr)</span>
+                  )}
+                </p>
+              </div>
+              {nextLesson.is_changed && (
+                <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full font-semibold self-start">⚠ Geänderter Termin</span>
+              )}
+            </div>
+            {nextLesson.notes && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-sm font-semibold text-gray-600 mb-1">📝 Bis dahin erledigen:</p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{nextLesson.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📝 Verfügbare Quizzes</h2>

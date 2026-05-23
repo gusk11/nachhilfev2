@@ -71,6 +71,24 @@ export default function TeacherDashboard() {
   const [newName, setNewName] = useState('');
   const [nameSaving, setNameSaving] = useState(false);
 
+  // Stundenplan
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [scheduleModal, setScheduleModal] = useState<{ student: Student } | null>(null);
+  const [schedDay, setSchedDay] = useState(1);
+  const [schedTime, setSchedTime] = useState('15:00');
+  const [schedDuration, setSchedDuration] = useState(60);
+  const [schedSaving, setSchedSaving] = useState(false);
+  const [sessionModal, setSessionModal] = useState<{
+    studentId: number; studentName: string; date: string;
+    standardTime: string; standardDuration: number; sessionId: number | null;
+    existingTime: string; existingDuration: string; existingNotes: string;
+  } | null>(null);
+  const [sessTime, setSessTime] = useState('');
+  const [sessDuration, setSessDuration] = useState('');
+  const [sessNotes, setSessNotes] = useState('');
+  const [sessSaving, setSessSaving] = useState(false);
+
   // Dateien-Modal
   const [filesModal, setFilesModal] = useState<{ id: number; name: string } | null>(null);
   const [studentFiles, setStudentFiles] = useState<StudentFile[]>([]);
@@ -84,8 +102,12 @@ export default function TeacherDashboard() {
 
   const fetchData = async () => {
     try {
-      const studentsRes = await fetch('/api/students', { credentials: 'include' });
-      const resultsRes = await fetch('/api/results/all', { credentials: 'include' });
+      const [studentsRes, resultsRes, schedulesRes, sessionsRes] = await Promise.all([
+        fetch('/api/students', { credentials: 'include' }),
+        fetch('/api/results/all', { credentials: 'include' }),
+        fetch('/api/lesson-schedules', { credentials: 'include' }),
+        fetch('/api/lesson-sessions', { credentials: 'include' }),
+      ]);
 
       if (studentsRes.status === 401) {
         router.push('/lehrer');
@@ -94,12 +116,49 @@ export default function TeacherDashboard() {
 
       if (studentsRes.ok) setStudents(await studentsRes.json());
       if (resultsRes.ok) setResults(await resultsRes.json());
+      if (schedulesRes.ok) setSchedules(await schedulesRes.json());
+      if (sessionsRes.ok) setSessions(await sessionsRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  // Kalender: nächste 14 Tage mit Stunden berechnen
+  const calendarDays = (() => {
+    const DAYS_DE = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const result: { dateStr: string; label: string; lessons: any[] }[] = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(today); d.setDate(today.getDate() + i);
+      const dow = d.getDay();
+      const dateStr = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      const lessons = schedules
+        .filter((sc: any) => sc.day_of_week === dow)
+        .map((sc: any) => {
+          const sess = sessions.find((s: any) =>
+            s.student_id === sc.student_id &&
+            (s.lesson_date?.toString().startsWith(dateStr) || String(s.lesson_date) === dateStr)
+          );
+          return {
+            studentId: sc.student_id,
+            studentName: sc.student_name,
+            startTime: sess?.start_time || sc.start_time,
+            durationMinutes: sess?.duration_minutes || sc.duration_minutes,
+            standardTime: sc.start_time,
+            standardDuration: sc.duration_minutes,
+            notes: sess?.notes || null,
+            isChanged: !!(sess?.start_time && sess.start_time !== sc.start_time),
+            sessionId: sess?.id || null,
+            dateStr,
+          };
+        });
+      if (lessons.length > 0) result.push({ dateStr, label, lessons });
+    }
+    return result;
+  })();
 
   const fetchResultDetail = async (resultId: number) => {
     setDetailLoading(true);
@@ -209,6 +268,68 @@ export default function TeacherDashboard() {
     } finally {
       setPinSaving(false);
     }
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!scheduleModal) return;
+    setSchedSaving(true);
+    try {
+      const res = await fetch('/api/lesson-schedules', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: scheduleModal.student.id, day_of_week: schedDay, start_time: schedTime, duration_minutes: schedDuration }),
+      });
+      if (res.ok) { setScheduleModal(null); fetchData(); }
+      else alert('Fehler beim Speichern');
+    } catch { alert('Netzwerkfehler'); }
+    finally { setSchedSaving(false); }
+  };
+
+  const handleDeleteSchedule = async (studentId: number) => {
+    if (!confirm('Grundstunde für diesen Schüler löschen?')) return;
+    await fetch(`/api/lesson-schedules/${studentId}`, { method: 'DELETE', credentials: 'include' });
+    fetchData();
+  };
+
+  const openSessionModal = (lesson: any) => {
+    setSessionModal({
+      studentId: lesson.studentId, studentName: lesson.studentName,
+      date: lesson.dateStr, standardTime: lesson.standardTime,
+      standardDuration: lesson.standardDuration, sessionId: lesson.sessionId,
+      existingTime: lesson.isChanged ? lesson.startTime : '',
+      existingDuration: lesson.sessionId && lesson.durationMinutes !== lesson.standardDuration ? String(lesson.durationMinutes) : '',
+      existingNotes: lesson.notes || '',
+    });
+    setSessTime(lesson.isChanged ? lesson.startTime : '');
+    setSessDuration(lesson.sessionId && lesson.durationMinutes !== lesson.standardDuration ? String(lesson.durationMinutes) : '');
+    setSessNotes(lesson.notes || '');
+  };
+
+  const handleSaveSession = async () => {
+    if (!sessionModal) return;
+    setSessSaving(true);
+    try {
+      const res = await fetch('/api/lesson-sessions', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: sessionModal.studentId,
+          lesson_date: sessionModal.date,
+          start_time: sessTime || null,
+          duration_minutes: sessDuration ? parseInt(sessDuration) : null,
+          notes: sessNotes || null,
+        }),
+      });
+      if (res.ok) { setSessionModal(null); fetchData(); }
+      else alert('Fehler beim Speichern');
+    } catch { alert('Netzwerkfehler'); }
+    finally { setSessSaving(false); }
+  };
+
+  const handleDeleteSession = async (id: number) => {
+    await fetch(`/api/lesson-sessions/${id}`, { method: 'DELETE', credentials: 'include' });
+    setSessionModal(null);
+    fetchData();
   };
 
   const handleSaveName = async () => {
@@ -398,18 +519,40 @@ export default function TeacherDashboard() {
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👥 Registrierte Schüler</h2>
             <div className="space-y-2">
-              {students.map((s) => (
+              {students.map((s) => {
+                const sc = schedules.find((x: any) => x.student_id === s.id);
+                const DAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+                return (
                 <div key={s.id} className="p-3 bg-[#eef3fb] rounded-lg border border-[#dce8f7]">
                   <p className="font-semibold text-gray-800">{s.name}</p>
-                  <p className="text-sm text-gray-500 mb-2">
+                  <p className="text-sm text-gray-500">
                     Seit {new Date(s.created_at).toLocaleDateString('de-DE')}
                   </p>
+                  {sc ? (
+                    <p className="text-xs text-[#032e65] font-medium mt-0.5 mb-2">
+                      ⏰ {DAYS[sc.day_of_week]} · {sc.start_time} Uhr · {sc.duration_minutes} Min.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-400 mt-0.5 mb-2">Keine Grundstunde</p>
+                  )}
                   <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => openFilesModal(s)}
                       className="flex-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
                     >
                       📎 Dateien
+                    </button>
+                    <button
+                      onClick={() => {
+                        setScheduleModal({ student: s });
+                        const existing = schedules.find((x: any) => x.student_id === s.id);
+                        setSchedDay(existing?.day_of_week ?? 1);
+                        setSchedTime(existing?.start_time ?? '15:00');
+                        setSchedDuration(existing?.duration_minutes ?? 60);
+                      }}
+                      className="flex-1 text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700 transition"
+                    >
+                      ⏰ Stunde
                     </button>
                     <button
                       onClick={() => { setRenameModal({ id: s.id, name: s.name }); setNewName(s.name); }}
@@ -421,7 +564,7 @@ export default function TeacherDashboard() {
                       onClick={() => { setPinModal({ id: s.id, name: s.name }); setNewPin(''); }}
                       className="flex-1 text-xs bg-[#032e65] text-white px-2 py-1 rounded hover:bg-[#021d40] transition"
                     >
-                      PIN ändern
+                      PIN
                     </button>
                     <button
                       onClick={() => handleDeleteStudent(s.id, s.name)}
@@ -431,12 +574,54 @@ export default function TeacherDashboard() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {students.length === 0 && (
                 <p className="text-gray-500">Noch keine Schüler registriert</p>
               )}
             </div>
           </div>
+        </div>
+
+        {/* Stundenplan-Kalender */}
+        <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
+        <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – nächste 2 Wochen</h2>
+        {calendarDays.length === 0 ? (
+          <p className="text-gray-500 text-sm">Noch keine Grundstunden eingetragen. Klicke bei einem Schüler auf <strong>⏰ Stunde</strong>.</p>
+        ) : (
+          <div className="space-y-6">
+            {calendarDays.map(({ dateStr, label, lessons }) => (
+              <div key={dateStr}>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{label}</p>
+                <div className="space-y-2">
+                  {lessons.sort((a, b) => a.startTime.localeCompare(b.startTime)).map((lesson: any) => (
+                    <div
+                      key={lesson.studentId}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${lesson.isChanged ? 'bg-red-50 border-red-300' : 'bg-[#eef3fb] border-[#dce8f7]'}`}
+                    >
+                      <div>
+                        <p className="font-semibold text-gray-800 text-sm">{lesson.studentName}</p>
+                        <p className={`text-sm ${lesson.isChanged ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                          {lesson.startTime} Uhr · {lesson.durationMinutes} Min.
+                          {lesson.isChanged && <span className="ml-1 text-xs">(Standard: {lesson.standardTime})</span>}
+                        </p>
+                        {lesson.notes && (
+                          <p className="text-xs text-gray-500 mt-0.5 italic">📝 {lesson.notes.slice(0, 60)}{lesson.notes.length > 60 ? '…' : ''}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => openSessionModal(lesson)}
+                        className="text-xs bg-[#032e65] text-white px-3 py-1.5 rounded-lg hover:bg-[#021d40] transition flex-shrink-0 ml-3"
+                      >
+                        ✏️ Bearbeiten
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         </div>
       </div>
 
@@ -573,6 +758,105 @@ export default function TeacherDashboard() {
                 className="flex-1 bg-amber-500 text-white py-2 rounded-lg hover:bg-amber-600 disabled:opacity-50"
               >
                 {nameSaving ? 'Speichert...' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Grundstunde-Modal */}
+      {scheduleModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setScheduleModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">⏰ Grundstunde – {scheduleModal.student.name}</h2>
+              <button onClick={() => setScheduleModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+            </div>
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Wochentag</label>
+                <select value={schedDay} onChange={(e) => setSchedDay(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  {['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'].map((d, i) => (
+                    <option key={i} value={i}>{d}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                <input type="time" value={schedTime} onChange={(e) => setSchedTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dauer (Minuten)</label>
+                <input type="number" min={15} max={240} step={5} value={schedDuration} onChange={(e) => setSchedDuration(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              {schedules.find((x: any) => x.student_id === scheduleModal.student.id) && (
+                <button onClick={() => { handleDeleteSchedule(scheduleModal.student.id); setScheduleModal(null); }}
+                  className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 text-sm">
+                  Löschen
+                </button>
+              )}
+              <button onClick={() => setScheduleModal(null)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">Abbrechen</button>
+              <button onClick={handleSaveSchedule} disabled={schedSaving}
+                className="flex-1 bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                {schedSaving ? 'Speichert...' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session-bearbeiten-Modal */}
+      {sessionModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSessionModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-1">
+              <h2 className="text-lg font-bold text-gray-800">✏️ Stunde bearbeiten</h2>
+              <button onClick={() => setSessionModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              {sessionModal.studentName} · {new Date(sessionModal.date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </p>
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Uhrzeit <span className="text-gray-400 font-normal">(Standard: {sessionModal.standardTime})</span>
+                </label>
+                <input type="time" value={sessTime} onChange={(e) => setSessTime(e.target.value)}
+                  placeholder={sessionModal.standardTime}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
+                <p className="text-xs text-gray-400 mt-0.5">Leer lassen = Standardzeit verwenden</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dauer in Min. <span className="text-gray-400 font-normal">(Standard: {sessionModal.standardDuration})</span>
+                </label>
+                <input type="number" min={15} max={240} step={5} value={sessDuration} onChange={(e) => setSessDuration(e.target.value)}
+                  placeholder={String(sessionModal.standardDuration)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">📝 Notizen / Aufgaben für den Schüler</label>
+                <textarea value={sessNotes} onChange={(e) => setSessNotes(e.target.value)} rows={4}
+                  placeholder="Was soll bis zur nächsten Stunde erledigt werden?"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-sm resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              {sessionModal.sessionId && (
+                <button onClick={() => handleDeleteSession(sessionModal.sessionId!)}
+                  className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg hover:bg-red-200 text-sm">
+                  Zurücksetzen
+                </button>
+              )}
+              <button onClick={() => setSessionModal(null)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">Abbrechen</button>
+              <button onClick={handleSaveSession} disabled={sessSaving}
+                className="flex-1 bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50">
+                {sessSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
           </div>
