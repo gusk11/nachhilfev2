@@ -319,6 +319,36 @@ export async function getLessonSessionsForStudent(studentId: number) {
   return rows;
 }
 
+export async function updateLessonSession(
+  id: number,
+  lessonDate: string,
+  startTime: string | null,
+  durationMinutes: number | null,
+  notes: string | null
+) {
+  const currentSession = await sql`SELECT * FROM lesson_sessions WHERE id = ${id}`;
+  if (!currentSession.length) {
+    throw new Error('Session nicht gefunden');
+  }
+
+  const session = currentSession[0];
+
+  // Falls Datum sich geändert hat, alte Zeile löschen (für den Fall, dass es einen UNIQUE-Constraint gibt)
+  if (session.lesson_date !== lessonDate) {
+    await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
+  }
+
+  // Neue/aktualisierte Session einfügen
+  const rows = await sql`
+    INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes)
+    VALUES (${session.student_id}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes})
+    ON CONFLICT (student_id, lesson_date) DO UPDATE SET
+      start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}
+    RETURNING *
+  `;
+  return rows[0];
+}
+
 export async function deleteLessonSession(id: number) {
   await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
 }

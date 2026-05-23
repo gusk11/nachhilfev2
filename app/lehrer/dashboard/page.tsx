@@ -114,6 +114,14 @@ export default function TeacherDashboard() {
   const [sessNotes, setSessNotes] = useState('');
   const [sessSaving, setSessSaving] = useState(false);
 
+  const [extraSessionModal, setExtraSessionModal] = useState<{
+    studentId: number; studentName: string; date: string;
+  } | null>(null);
+  const [extraTime, setExtraTime] = useState('15:00');
+  const [extraDuration, setExtraDuration] = useState('60');
+  const [extraNotes, setExtraNotes] = useState('');
+  const [extraSaving, setExtraSaving] = useState(false);
+
   // Dateien-Modal
   const [filesModal, setFilesModal] = useState<{ id: number; name: string } | null>(null);
   const [studentFiles, setStudentFiles] = useState<StudentFile[]>([]);
@@ -166,31 +174,31 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Kalender: letzte 2 Tage + nächste 14 Tage mit Stunden berechnen
+  // Kalender: letzte 2 Tage + nächste 14 Tage mit Stunden (regulär + Extrastunden)
   const calendarDays = (() => {
-    // Lokales Datum als YYYY-MM-DD (kein UTC-Versatz)
     const pad = (n: number) => String(n).padStart(2, '0');
     const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    // lesson_date kommt vom Server als ISO-String z.B. "2026-05-26T00:00:00.000Z"
     const normSessionDate = (v: any) => typeof v === 'string' ? v.slice(0, 10) : String(v).slice(0, 10);
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const result: { dateStr: string; label: string; lessons: any[] }[] = [];
 
-    // Zeige letzte 2 Tage + nächste 14 Tage = 16 Tage insgesamt
     for (let i = -2; i < 14; i++) {
       const d = new Date(today); d.setDate(today.getDate() + i);
       const dow = d.getDay();
       const dateStr = localDateStr(d);
       const label = d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' });
-      const lessons = schedules
+      const lessons: any[] = [];
+
+      // 1. Reguläre Stunden (aus Stundenplan)
+      schedules
         .filter((sc: any) => sc.day_of_week === dow)
-        .map((sc: any) => {
+        .forEach((sc: any) => {
           const sess = sessions.find((s: any) =>
             s.student_id === sc.student_id &&
             normSessionDate(s.lesson_date) === dateStr
           );
-          return {
+          lessons.push({
             studentId: sc.student_id,
             studentName: sc.student_name,
             startTime: sess?.start_time || sc.start_time,
@@ -201,9 +209,37 @@ export default function TeacherDashboard() {
             notes: sess?.notes || null,
             isChanged: !!(sess?.start_time && sess.start_time !== sc.start_time),
             sessionId: sess?.id || null,
+            isExtra: false,
             dateStr,
-          };
+          });
         });
+
+      // 2. Extrastunden (in sessions, aber nicht in schedules)
+      sessions
+        .filter((s: any) => normSessionDate(s.lesson_date) === dateStr)
+        .forEach((s: any) => {
+          const isRegular = schedules.some((sc: any) =>
+            sc.student_id === s.student_id && sc.day_of_week === dow
+          );
+          if (!isRegular) {
+            const student = students.find((st: any) => st.id === s.student_id);
+            lessons.push({
+              studentId: s.student_id,
+              studentName: student?.name || 'Unbekannt',
+              startTime: s.start_time || '??:??',
+              durationMinutes: s.duration_minutes || 0,
+              standardTime: undefined,
+              standardDuration: undefined,
+              standardDayOfWeek: undefined,
+              notes: s.notes || null,
+              isChanged: false,
+              sessionId: s.id,
+              isExtra: true,
+              dateStr,
+            });
+          }
+        });
+
       result.push({ dateStr, label, lessons });
     }
     return result;
@@ -372,53 +408,57 @@ export default function TeacherDashboard() {
     if (!sessionModal) return;
     setSessSaving(true);
     try {
-      console.log('🔍 Session speichern:', {
-        studentId: sessionModal.studentId,
-        date: sessionModal.date,
-        originalDate: sessionModal.originalDate,
-        sessionId: sessionModal.sessionId,
-        sessTime,
-        sessDuration,
-        sessNotes,
-      });
-
-      // Wenn sich das Datum geändert hat und es eine alte Session gibt, erst die alte löschen
-      if (sessionModal.sessionId && sessionModal.date !== sessionModal.originalDate) {
-        console.log('🗑️ Alte Session wird gelöscht:', sessionModal.sessionId);
-        const deleteRes = await fetch(`/api/lesson-sessions/${sessionModal.sessionId}`, {
-          method: 'DELETE', credentials: 'include'
-        });
-        console.log('Delete response:', deleteRes.ok);
-      }
-
       const payload = {
-        student_id: sessionModal.studentId,
         lesson_date: sessionModal.date,
         start_time: sessTime || null,
         duration_minutes: sessDuration ? parseInt(sessDuration) : null,
         notes: sessNotes || null,
       };
 
-      console.log('📤 Sende Payload:', payload);
-
-      const res = await fetch('/api/lesson-sessions', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      console.log('📤 Session Update:', {
+        id: sessionModal.sessionId,
+        payload,
+        dateChanged: sessionModal.date !== sessionModal.originalDate,
       });
 
-      console.log('POST response status:', res.status);
+      if (sessionModal.sessionId) {
+        // Aktualisiere existierende Session mit PUT (atomare Datumsänderung)
+        const res = await fetch(`/api/lesson-sessions/${sessionModal.sessionId}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        console.log('✅ Session erfolgreich gespeichert:', data);
-        setSessionModal(null);
-        fetchData();
-      }
-      else {
-        const d = await res.json();
-        console.error('❌ Fehler beim Speichern:', d);
-        alert('Fehler: ' + (d.error || res.status));
+        if (res.ok) {
+          const data = await res.json();
+          console.log('✅ Session erfolgreich aktualisiert:', data);
+          setSessionModal(null);
+          fetchData();
+        } else {
+          const d = await res.json();
+          console.error('❌ Fehler beim Aktualisieren:', d);
+          alert('Fehler: ' + (d.error || res.status));
+        }
+      } else {
+        // Neue Session einfügen
+        const res = await fetch('/api/lesson-sessions', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: sessionModal.studentId, ...payload }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log('✅ Neue Session erstellt:', data);
+          setSessionModal(null);
+          fetchData();
+        } else {
+          const d = await res.json();
+          console.error('❌ Fehler beim Erstellen:', d);
+          alert('Fehler: ' + (d.error || res.status));
+        }
       }
     } catch (err) {
       console.error('Exception:', err);
@@ -432,6 +472,42 @@ export default function TeacherDashboard() {
     await fetch(`/api/lesson-sessions/${id}`, { method: 'DELETE', credentials: 'include' });
     setSessionModal(null);
     fetchData();
+  };
+
+  const handleSaveExtraSession = async () => {
+    if (!extraSessionModal) return;
+    setExtraSaving(true);
+    try {
+      const payload = {
+        student_id: extraSessionModal.studentId,
+        lesson_date: extraSessionModal.date,
+        start_time: extraTime || null,
+        duration_minutes: extraDuration ? parseInt(extraDuration) : null,
+        notes: extraNotes || null,
+      };
+
+      const res = await fetch('/api/lesson-sessions', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        console.log('✅ Extrastunde erstellt');
+        setExtraSessionModal(null);
+        setExtraTime('15:00');
+        setExtraDuration('60');
+        setExtraNotes('');
+        fetchData();
+      } else {
+        const d = await res.json();
+        alert('Fehler: ' + (d.error || res.status));
+      }
+    } catch (err) {
+      alert('Netzwerkfehler: ' + String(err));
+    }
+    finally { setExtraSaving(false); }
   };
 
   const handleSaveName = async () => {
@@ -866,6 +942,14 @@ export default function TeacherDashboard() {
                     })}
                   </div>
                 )}
+                <div className="mt-3">
+                  <button
+                    onClick={() => setExtraSessionModal({ studentId: 0, studentName: '', date: dateStr })}
+                    className="w-full text-xs bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg border border-indigo-300 hover:bg-indigo-200 transition font-medium"
+                  >
+                    ➕ Extrastunde hinzufügen
+                  </button>
+                </div>
               </div>
             ))}
               </div>
@@ -1349,6 +1433,80 @@ export default function TeacherDashboard() {
                   {pinSaving ? 'Speichert...' : 'Speichern'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Extrastunde hinzufügen Modal */}
+      <AnimatePresence>
+        {extraSessionModal && (
+          <motion.div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" variants={modalVariants} initial="hidden" animate="visible" exit="exit" onClick={() => setExtraSessionModal(null)}>
+            <motion.div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" variants={modalContentVariants} initial="hidden" animate="visible" exit="exit" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-1">
+                <h2 className="text-lg font-bold text-gray-800">➕ Extrastunde hinzufügen</h2>
+                <button onClick={() => setExtraSessionModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Schüler-Auswahl */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">👤 Schüler</label>
+                <select
+                  value={extraSessionModal.studentId}
+                  onChange={(e) => {
+                    const id = parseInt(e.target.value);
+                    const student = students.find((s: any) => s.id === id);
+                    setExtraSessionModal(extraSessionModal ? { ...extraSessionModal, studentId: id, studentName: student?.name || '' } : null);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
+                >
+                  <option value="">-- Schüler wählen --</option>
+                  {students.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Datum */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">📅 Datum</label>
+                <p className="text-sm text-gray-600 font-medium">{new Date(extraSessionModal.date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+              </div>
+
+              {/* Uhrzeit */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">🕐 Uhrzeit</label>
+                <input type="time" value={extraTime} onChange={(e) => setExtraTime(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
+              </div>
+
+              {/* Dauer */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">⏱️ Dauer in Min.</label>
+                <input type="number" min={15} max={240} step={5} value={extraDuration} onChange={(e) => setExtraDuration(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]" />
+              </div>
+
+              {/* Notizen */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">📝 Notizen / Grund</label>
+                <textarea value={extraNotes} onChange={(e) => setExtraNotes(e.target.value)} rows={2}
+                  placeholder="z.B. Nachholstunde, Vertiefung, etc."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] text-sm resize-none" />
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex gap-3">
+              <button onClick={() => setExtraSessionModal(null)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 font-medium">Abbrechen</button>
+              <button onClick={handleSaveExtraSession} disabled={extraSaving || !extraSessionModal.studentId}
+                className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium">
+                {extraSaving ? 'Erstellt...' : 'Erstellen'}
+              </button>
+            </div>
             </motion.div>
           </motion.div>
         )}
