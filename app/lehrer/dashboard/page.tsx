@@ -164,7 +164,7 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Kalender: nächste 14 Tage mit Stunden berechnen
+  // Kalender: letzte 2 Tage + nächste 14 Tage mit Stunden berechnen
   const calendarDays = (() => {
     // Lokales Datum als YYYY-MM-DD (kein UTC-Versatz)
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -174,10 +174,12 @@ export default function TeacherDashboard() {
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const result: { dateStr: string; label: string; lessons: any[] }[] = [];
-    for (let i = 0; i < 14; i++) {
+
+    // Zeige letzte 2 Tage + nächste 14 Tage = 16 Tage insgesamt
+    for (let i = -2; i < 14; i++) {
       const d = new Date(today); d.setDate(today.getDate() + i);
       const dow = d.getDay();
-      const dateStr = localDateStr(d); // ← lokale Zeit, kein UTC-Versatz
+      const dateStr = localDateStr(d);
       const label = d.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' });
       const lessons = schedules
         .filter((sc: any) => sc.day_of_week === dow)
@@ -1002,9 +1004,9 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="p-6 space-y-4">
-              {/* Datums-Kalender – flexibles Fenster basierend auf Standard-Wochentag */}
+              {/* Datums-Kalender – flexibles Fenster für vergangene & zukünftige Stunden */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">📅 Datum wählen – diese und nächste Woche</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">📅 Datum wählen</label>
                 <div className="grid grid-cols-7 gap-1">
                   {(() => {
                     const pad = (n: number) => String(n).padStart(2, '0');
@@ -1015,14 +1017,23 @@ export default function TeacherDashboard() {
                     const currentDate = new Date(year, month - 1, day);
                     currentDate.setHours(0, 0, 0, 0);
 
-                    // Calculate date range: Monday of this week to Friday of next week
-                    // (relative to the standard day of week)
-                    const daysToMondayBack = sessionModal.standardDayOfWeek - 1; // Monday = 1
-                    const startDate = new Date(currentDate);
-                    startDate.setDate(currentDate.getDate() - daysToMondayBack);
+                    // Bestimme Start- und Enddatum für das Fenster
+                    const now = new Date(); now.setHours(0, 0, 0, 0);
+                    const isPast = currentDate < now;
 
-                    const endDate = new Date(currentDate);
-                    endDate.setDate(currentDate.getDate() + (12 - sessionModal.standardDayOfWeek));
+                    let startDate = new Date(currentDate);
+                    let endDate = new Date(currentDate);
+
+                    if (isPast) {
+                      // Für vergangene Stunden: letzte 2 Tage + nächste 2 Wochen (flexible Datumsänderung)
+                      startDate.setDate(currentDate.getDate() - 2);
+                      endDate.setDate(currentDate.getDate() + 14);
+                    } else {
+                      // Für zukünftige Stunden: diese Woche + nächste Woche (wie zuvor)
+                      const daysToMondayBack = sessionModal.standardDayOfWeek - 1;
+                      startDate.setDate(currentDate.getDate() - daysToMondayBack);
+                      endDate.setDate(currentDate.getDate() + (12 - sessionModal.standardDayOfWeek));
+                    }
 
                     const days = [];
                     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
