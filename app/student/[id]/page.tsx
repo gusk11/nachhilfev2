@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { accordionContentVariants, rotateArrowVariants } from '@/app/lib/motionVariants';
 
 interface Quiz {
   id: number;
@@ -251,43 +253,86 @@ export default function StudentDashboard() {
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>👤 Meine Informationen</span>
-              <span className={`transform transition ${openSections.info ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.info ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
             <button
               onClick={() => toggleSection('quizzes')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>📝 Verfügbare Quizzes</span>
-              <span className={`transform transition ${openSections.quizzes ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.quizzes ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
             <button
               onClick={() => toggleSection('results')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>📈 Ergebnisse</span>
-              <span className={`transform transition ${openSections.results ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.results ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
             <button
               onClick={() => toggleSection('availableDocuments')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>📚 Verfügbare Dokumente (Probetests, Übersichten)</span>
-              <span className={`transform transition ${openSections.availableDocuments ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.availableDocuments ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
             <button
               onClick={() => toggleSection('uploadDocuments')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>📤 Dokumente hochladen (Tests, ...)</span>
-              <span className={`transform transition ${openSections.uploadDocuments ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.uploadDocuments ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
           </div>
         </div>
 
         {/* Content Sections */}
         <div className="space-y-8">
-          {openSections.info && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.info && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👤 Meine Informationen</h2>
               <form onSubmit={async (e) => {
                 e.preventDefault();
@@ -333,11 +378,20 @@ export default function StudentDashboard() {
                   {savingInfo ? 'Speichert...' : 'Speichern'}
                 </button>
               </form>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {openSections.quizzes && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.quizzes && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📝 Verfügbare Quizzes</h2>
             <div className="space-y-3">
               {quizzes.length > 0 ? (
@@ -356,12 +410,21 @@ export default function StudentDashboard() {
               ) : (
                 <p className="text-gray-500">Noch keine Quizzes verfügbar</p>
               )}
-            </div>
-            </div>
-          )}
+              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {openSections.results && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.results && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📈 Ergebnisse</h2>
             <p className="text-sm text-gray-500 mb-3">Karte anklicken für Einzelauswertung</p>
             <div className="space-y-3">
@@ -386,12 +449,21 @@ export default function StudentDashboard() {
               ) : (
                 <p className="text-gray-500">Noch keine Ergebnisse</p>
               )}
-            </div>
-            </div>
-          )}
+              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {openSections.availableDocuments && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.availableDocuments && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📚 Verfügbare Dokumente (Probetests, Übersichten)</h2>
             <div className="space-y-3">
               {files.length === 0 ? (
@@ -462,12 +534,21 @@ export default function StudentDashboard() {
                   ))}
                 </div>
               )}
-            </div>
-            </div>
-          )}
+              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {openSections.uploadDocuments && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.uploadDocuments && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📤 Dokumente hochladen (Tests, ...)</h2>
               <form onSubmit={handleUpload} className="space-y-4">
                 <div>
@@ -506,21 +587,32 @@ export default function StudentDashboard() {
                   </button>
                 </div>
               </form>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* Detail-Modal */}
-      {(detailLoading || detailResult) && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-          onClick={() => setDetailResult(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {(detailLoading || detailResult) && (
+          <motion.div
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 }, exit: { opacity: 0 } }}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setDetailResult(null)}
           >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+              className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
             {detailLoading ? (
               <div className="flex items-center justify-center py-16 text-gray-500">
                 Lädt Details...
@@ -579,9 +671,10 @@ export default function StudentDashboard() {
                 )}
               </div>
             )}
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

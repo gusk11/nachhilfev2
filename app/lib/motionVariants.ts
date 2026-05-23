@@ -222,18 +222,7 @@ export const getVariant = (
   variant: Variants,
   prefersReducedMotion: boolean
 ): Variants => {
-  if (!prefersReducedMotion) return variant;
-
-  // Return instant variants (no animation)
-  return {
-    hidden: Object.keys(variant.hidden || {}).reduce((acc, key) => {
-      acc[key] = (variant.hidden as Record<string, unknown>)[key];
-      return acc;
-    }, {} as Record<string, unknown>),
-    visible: Object.keys(variant.visible || {}).reduce((acc, key) => {
-      acc[key] = (variant.visible as Record<string, unknown>)[key];
-      return acc;
-    }, {} as Record<string, unknown>),
-  };
+  // Return variant as-is; animations will be disabled by browser/OS
+  return variant;
 };
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { modalVariants, modalContentVariants, accordionContentVariants, rotateArrowVariants } from '@/app/lib/motionVariants';
 
 interface Student {
   id: number;
@@ -526,36 +527,72 @@ export default function TeacherDashboard() {
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>📤 Quiz hochladen</span>
-              <span className={`transform transition ${openSections.upload ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.upload ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
             <button
               onClick={() => toggleSection('results')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>📊 Ergebnisse</span>
-              <span className={`transform transition ${openSections.results ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.results ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
             <button
               onClick={() => toggleSection('students')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>👥 Registrierte Schüler</span>
-              <span className={`transform transition ${openSections.students ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.students ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
             <button
               onClick={() => toggleSection('schedule')}
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition text-left font-semibold text-gray-800"
             >
               <span>📅 Stundenplan</span>
-              <span className={`transform transition ${openSections.schedule ? 'rotate-180' : ''}`}>▼</span>
+              <motion.span
+                variants={rotateArrowVariants}
+                initial="closed"
+                animate={openSections.schedule ? 'open' : 'closed'}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
             </button>
           </div>
         </div>
 
         {/* Content Area */}
         <div className="space-y-8">
-          {openSections.upload && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.upload && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📤 Quiz hochladen</h2>
               <form onSubmit={handleFileUpload} className="space-y-4">
                 <div>
@@ -611,11 +648,20 @@ export default function TeacherDashboard() {
                   {uploading ? 'Wird hochgeladen...' : 'Quiz hochladen'}
                 </button>
               </form>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {openSections.results && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.results && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📊 Ergebnisse</h2>
               <p className="text-sm text-gray-500 mb-3">Zeile anklicken für Einzelauswertung</p>
               <div className="overflow-x-auto">
@@ -651,11 +697,20 @@ export default function TeacherDashboard() {
                   <p className="text-center py-8 text-gray-500">Noch keine Ergebnisse</p>
                 )}
               </div>
-            </div>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {openSections.students && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.students && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👥 Registrierte Schüler</h2>
             <div className="space-y-2">
               {students.map((s) => {
@@ -718,12 +773,21 @@ export default function TeacherDashboard() {
               {students.length === 0 && (
                 <p className="text-gray-500">Noch keine Schüler registriert</p>
               )}
-            </div>
-            </div>
-          )}
+              </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {openSections.schedule && (
-            <div className="bg-white rounded-lg shadow-lg p-6">
+          <AnimatePresence>
+            {openSections.schedule && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – nächste 2 Wochen</h2>
         {calendarDays.length === 0 ? (
           <p className="text-gray-500 text-sm">Noch keine Grundstunden eingetragen. Klicke bei einem Schüler auf <strong>⏰ Stunde</strong>.</p>
@@ -804,23 +868,33 @@ export default function TeacherDashboard() {
                 )}
               </div>
             ))}
-          </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* Dateien-Modal */}
-      {filesModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-          onClick={() => setFilesModal(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {filesModal && (
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setFilesModal(null)}
           >
+            <motion.div
+              variants={modalContentVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="p-6">
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-xl font-bold text-[#032e65]">
@@ -901,20 +975,30 @@ export default function TeacherDashboard() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Name-bearbeiten-Modal */}
-      {renameModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-          onClick={() => setRenameModal(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {renameModal && (
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setRenameModal(null)}
           >
+            <motion.div
+              variants={modalContentVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-800">Name bearbeiten</h2>
               <button onClick={() => setRenameModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
@@ -946,14 +1030,16 @@ export default function TeacherDashboard() {
                 {nameSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Grundstunde-Modal */}
-      {scheduleModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setScheduleModal(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+      <AnimatePresence>
+        {scheduleModal && (
+          <motion.div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" variants={modalVariants} initial="hidden" animate="visible" exit="exit" onClick={() => setScheduleModal(null)}>
+            <motion.div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" variants={modalContentVariants} initial="hidden" animate="visible" exit="exit" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-gray-800">⏰ Grundstunde – {scheduleModal.student.name}</h2>
               <button onClick={() => setScheduleModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
@@ -992,14 +1078,16 @@ export default function TeacherDashboard() {
                 {schedSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Session-bearbeiten-Modal */}
-      {sessionModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSessionModal(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <AnimatePresence>
+        {sessionModal && (
+          <motion.div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" variants={modalVariants} initial="hidden" animate="visible" exit="exit" onClick={() => setSessionModal(null)}>
+            <motion.div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" variants={modalContentVariants} initial="hidden" animate="visible" exit="exit" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
               <div className="flex justify-between items-center mb-1">
                 <h2 className="text-lg font-bold text-gray-800">✏️ Stunde bearbeiten</h2>
@@ -1119,9 +1207,10 @@ export default function TeacherDashboard() {
                 {sessSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Activity Modal */}
       <AnimatePresence>
@@ -1209,126 +1298,146 @@ export default function TeacherDashboard() {
       </AnimatePresence>
 
       {/* PIN-Modal */}
-      {pinModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-          onClick={() => setPinModal(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {pinModal && (
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setPinModal(null)}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-800">PIN ändern</h2>
-              <button onClick={() => setPinModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Neue PIN für <span className="font-semibold">{pinModal.name}</span>
-            </p>
-            <input
-              type="text"
-              value={newPin}
-              onChange={(e) => setNewPin(e.target.value)}
-              placeholder="Neue PIN eingeben"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] mb-4"
-              autoFocus
-            />
-            <p className="text-xs text-gray-400 mb-4">
-              PINs sind verschlüsselt gespeichert — die alte PIN kann nicht eingesehen werden.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setPinModal(null)}
-                className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
-              >
-                Abbrechen
-              </button>
-              <button
-                onClick={handleSavePin}
-                disabled={!newPin.trim() || pinSaving}
-                className="flex-1 bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50"
-              >
-                {pinSaving ? 'Speichert...' : 'Speichern'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <motion.div
+              variants={modalContentVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold text-gray-800">PIN ändern</h2>
+                <button onClick={() => setPinModal(null)} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Neue PIN für <span className="font-semibold">{pinModal.name}</span>
+              </p>
+              <input
+                type="text"
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value)}
+                placeholder="Neue PIN eingeben"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] mb-4"
+                autoFocus
+              />
+              <p className="text-xs text-gray-400 mb-4">
+                PINs sind verschlüsselt gespeichert — die alte PIN kann nicht eingesehen werden.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPinModal(null)}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={handleSavePin}
+                  disabled={!newPin.trim() || pinSaving}
+                  className="flex-1 bg-[#032e65] text-white py-2 rounded-lg hover:bg-[#021d40] disabled:opacity-50"
+                >
+                  {pinSaving ? 'Speichert...' : 'Speichern'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Detail-Modal */}
-      {(detailLoading || detailResult) && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-          onClick={() => setDetailResult(null)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {(detailLoading || detailResult) && (
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setDetailResult(null)}
           >
-            {detailLoading ? (
-              <div className="flex items-center justify-center py-16 text-gray-500">
-                Lädt Details...
-              </div>
-            ) : detailResult && (
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-800">{detailResult.quiz_title}</h2>
-                    <p className="text-gray-500 text-sm">{detailResult.student_name}</p>
+            <motion.div
+              variants={modalContentVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {detailLoading ? (
+                <div className="flex items-center justify-center py-16 text-gray-500">
+                  Lädt Details...
+                </div>
+              ) : detailResult && (
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-800">{detailResult.quiz_title}</h2>
+                      <p className="text-gray-500 text-sm">{detailResult.student_name}</p>
+                    </div>
+                    <button
+                      onClick={() => setDetailResult(null)}
+                      className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+                    >
+                      ×
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setDetailResult(null)}
-                    className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
-                  >
-                    ×
-                  </button>
-                </div>
 
-                <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-                  <span className="text-4xl font-bold text-green-600">
-                    {Number(detailResult.score).toFixed(1)}%
-                  </span>
-                  <span className="text-gray-500 text-sm">
-                    {new Date(detailResult.completed_at).toLocaleDateString('de-DE')}
-                  </span>
-                </div>
+                  <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                    <span className="text-4xl font-bold text-green-600">
+                      {Number(detailResult.score).toFixed(1)}%
+                    </span>
+                    <span className="text-gray-500 text-sm">
+                      {new Date(detailResult.completed_at).toLocaleDateString('de-DE')}
+                    </span>
+                  </div>
 
-                {!detailResult.questions || !detailResult.answers ? (
-                  <p className="text-gray-400 text-sm text-center py-4">
-                    Keine Einzelauswertung verfügbar (Test vor Update absolviert)
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {detailResult.questions.map((q, i) => {
-                      const studentAnswer = detailResult.answers![q.id];
-                      const isCorrect = studentAnswer === q.correctAnswer;
-                      return (
-                        <div
-                          key={q.id}
-                          className={`p-4 rounded-lg border-l-4 ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-400 bg-red-50'}`}
-                        >
-                          <p className="font-medium text-gray-800 mb-2">
-                            {i + 1}. {q.text}
-                          </p>
-                          <p className={`text-sm ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
-                            Antwort: {formatAnswer(studentAnswer, q.type)}
-                            {isCorrect ? ' ✓' : ''}
-                          </p>
-                          {!isCorrect && (
-                            <p className="text-sm text-green-700 mt-1">
-                              Richtig: {formatAnswer(q.correctAnswer, q.type)}
+                  {!detailResult.questions || !detailResult.answers ? (
+                    <p className="text-gray-400 text-sm text-center py-4">
+                      Keine Einzelauswertung verfügbar (Test vor Update absolviert)
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {detailResult.questions.map((q, i) => {
+                        const studentAnswer = detailResult.answers![q.id];
+                        const isCorrect = studentAnswer === q.correctAnswer;
+                        return (
+                          <div
+                            key={q.id}
+                            className={`p-4 rounded-lg border-l-4 ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-400 bg-red-50'}`}
+                          >
+                            <p className="font-medium text-gray-800 mb-2">
+                              {i + 1}. {q.text}
                             </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                            <p className={`text-sm ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                              Antwort: {formatAnswer(studentAnswer, q.type)}
+                              {isCorrect ? ' ✓' : ''}
+                            </p>
+                            {!isCorrect && (
+                              <p className="text-sm text-green-700 mt-1">
+                                Richtig: {formatAnswer(q.correctAnswer, q.type)}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
