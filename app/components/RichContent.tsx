@@ -1,19 +1,22 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import katex from 'katex';
 
 /**
- * Rendert HTML-Inhalt (aus Quiz-JSON) und ersetzt LaTeX-Math-Delimiter durch
- * KaTeX-gerenderte Formeln.
+ * Rendert HTML-Inhalt und ersetzt LaTeX-Math-Delimiter durch
+ * KaTeX-gerenderte HTML-Snippets.
+ *
+ * Wichtig: KaTeX wird beim ersten Render direkt in einen HTML-String
+ * gerendert (via katex.renderToString). Das prozessierte Ergebnis wird
+ * per useMemo gecacht und via dangerouslySetInnerHTML gesetzt — so
+ * überlebt es Re-Renders durch State-Changes im Parent (z.B. Auswahl
+ * einer Antwort) ohne die Mathe zu zerschießen.
  *
  * Unterstützte Delimiter:
  *   $$ … $$    → display math
  *   \[ … \]    → display math
  *   \( … \)    → inline math
- *
- * (Wir vermeiden bewusst $-only, weil "Kostet 5$ pro Stück" sonst aus Versehen
- * als Math interpretiert würde.)
  */
 export default function RichContent({
   html,
@@ -22,100 +25,94 @@ export default function RichContent({
   html: string;
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    renderMathIn(ref.current);
-  }, [html]);
+  const processed = useMemo(() => processMath(html), [html]);
 
   return (
     <div
-      ref={ref}
       className={`quiz-content ${className ?? ''}`}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: processed }}
     />
   );
 }
 
-function renderMathIn(root: HTMLElement) {
-  // Whitelist: nur Text-Knoten verarbeiten, KaTeX-Output (.katex) überspringen
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      let p: Node | null = node.parentNode;
-      while (p) {
-        if (p instanceof Element) {
-          const tag = p.tagName;
-          if (
-            tag === 'SCRIPT' ||
-            tag === 'STYLE' ||
-            tag === 'CODE' ||
-            tag === 'PRE' ||
-            p.classList.contains('katex')
-          ) {
-            return NodeFilter.FILTER_REJECT;
+/**
+ * Geht HTML Token-weise durch und ersetzt Math-Delimiter nur in Text-Knoten.
+ * Innerhalb von <code>, <pre>, <script>, <style> wird NICHT umgewandelt.
+ */
+function processMath(input: string): string {
+  const skipTags = new Set(['code', 'pre', 'script', 'style']);
+  let skipDepth = 0;
+  let out = '';
+  let i = 0;
+
+  while (i < input.length) {
+    if (input[i] === '<') {
+      const end = input.indexOf('>', i);
+      if (end === -1) {
+        // Unclosed tag — Rest als Text behandeln
+        const rest = input.slice(i);
+        out += skipDepth > 0 ? rest : renderMathInText(rest);
+        break;
+      }
+      const tag = input.slice(i, end + 1);
+      const m = tag.match(/^<\s*(\/?)\s*([a-zA-Z][a-zA-Z0-9]*)/);
+      if (m) {
+        const isClosing = m[1] === '/';
+        const tagName = m[2].toLowerCase();
+        if (skipTags.has(tagName)) {
+          if (isClosing) {
+            skipDepth = Math.max(0, skipDepth - 1);
+          } else if (!tag.endsWith('/>')) {
+            skipDepth += 1;
           }
         }
-        p = p.parentNode;
       }
-      return NodeFilter.FILTER_ACCEPT;
-    },
-  });
-
-  const textNodes: Text[] = [];
-  let cur: Node | null = walker.nextNode();
-  while (cur) {
-    textNodes.push(cur as Text);
-    cur = walker.nextNode();
+      out += tag;
+      i = end + 1;
+    } else {
+      const next = input.indexOf('<', i);
+      const end = next === -1 ? input.length : next;
+      const text = input.slice(i, end);
+      out += skipDepth > 0 ? text : renderMathInText(text);
+      i = end;
+    }
   }
 
-  // Math-Pattern: $$…$$, \[…\], \(…\)
+  return out;
+}
+
+function renderMathInText(text: string): string {
+  if (
+    !text.includes('$') &&
+    !text.includes('\\(') &&
+    !text.includes('\\[')
+  ) {
+    return text;
+  }
+
   // Reihenfolge wichtig: erst $$, dann \[ \], dann \( \)
   const pattern = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)/g;
 
-  for (const tn of textNodes) {
-    const text = tn.nodeValue ?? '';
-    if (!text.includes('$') && !text.includes('\\(') && !text.includes('\\[')) {
-      continue;
+  return text.replace(pattern, (full, dd, br, par) => {
+    const isDisplay = dd !== undefined || br !== undefined;
+    const expr = (dd ?? br ?? par ?? '').trim();
+    try {
+      return katex.renderToString(expr, {
+        displayMode: isDisplay,
+        throwOnError: false,
+        strict: 'ignore',
+        output: 'html',
+      });
+    } catch {
+      return escapeHtml(full);
     }
+  });
+}
 
-    pattern.lastIndex = 0;
-    let lastIndex = 0;
-    const fragment = document.createDocumentFragment();
-    let match: RegExpExecArray | null;
-    let matched = false;
-
-    while ((match = pattern.exec(text)) !== null) {
-      matched = true;
-      const [full, dd, br, par] = match;
-      const start = match.index;
-      if (start > lastIndex) {
-        fragment.appendChild(
-          document.createTextNode(text.slice(lastIndex, start))
-        );
-      }
-
-      const isDisplay = dd !== undefined || br !== undefined;
-      const expr = (dd ?? br ?? par ?? '').trim();
-      const span = document.createElement('span');
-      try {
-        katex.render(expr, span, {
-          displayMode: isDisplay,
-          throwOnError: false,
-          strict: 'ignore',
-          output: 'html',
-        });
-      } catch {
-        span.textContent = full;
-      }
-      fragment.appendChild(span);
-      lastIndex = start + full.length;
-    }
-
-    if (!matched) continue;
-    if (lastIndex < text.length) {
-      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-    }
-    tn.parentNode?.replaceChild(fragment, tn);
-  }
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>]/g, (c) => {
+    if (c === '&') return '&amp;';
+    if (c === '<') return '&lt;';
+    return '&gt;';
+  });
 }
