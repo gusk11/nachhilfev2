@@ -81,7 +81,7 @@ export default function TeacherLogin() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="PIN eingeben"
             autoComplete="current-password"
-            className="w-full px-5 py-4 bg-white/5 border border-white/20 hover:border-white/30 focus:border-white/60 backdrop-blur-md text-white placeholder-gray-400 rounded-full focus:outline-none transition-all"
+            className="auth-field w-full px-5 py-4 bg-white/5 border border-white/20 hover:border-white/30 focus:border-white/60 backdrop-blur-md text-white placeholder-gray-400 rounded-full focus:outline-none transition-all"
             required
           />
 

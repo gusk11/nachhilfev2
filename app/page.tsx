@@ -29,11 +29,22 @@ export default function Landing() {
       <div className="relative z-10 w-full max-w-md text-center">
         {/* Logo + Titel */}
         <div className="mb-12">
-          <img
-            src="/logo.png"
-            alt="Nachhilfe Next LVL"
-            className="w-28 h-28 mx-auto mb-6 object-contain drop-shadow-2xl"
-          />
+          <div className="relative w-40 h-40 mx-auto mb-6 flex items-center justify-center">
+            {/* Blauer Kreis hinter dem Logo */}
+            <div
+              aria-hidden
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: '#708DC7',
+                boxShadow: '0 0 60px rgba(112,141,199,0.6), 0 0 30px rgba(112,141,199,0.4)',
+              }}
+            />
+            <img
+              src="/logo.png"
+              alt="Nachhilfe Next LVL"
+              className="relative w-28 h-28 object-contain drop-shadow-2xl"
+            />
+          </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
             Nachhilfe Next LVL
           </h1>

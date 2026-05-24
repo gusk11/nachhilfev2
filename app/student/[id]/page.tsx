@@ -45,6 +45,17 @@ interface StudentFile {
   completed: boolean;
 }
 
+interface Todo {
+  id: number;
+  text: string;
+  created_at: string;
+}
+
+interface AnkiCreds {
+  anki_username: string | null;
+  anki_password: string | null;
+}
+
 interface DetailQuestion {
   id: string;
   text: string;
@@ -92,6 +103,14 @@ export default function StudentDashboard() {
   const [uploadNote, setUploadNote] = useState('');
   const [uploading, setUploading] = useState(false);
 
+  // Todos
+  const [todos, setTodos] = useState<Todo[]>([]);
+
+  // Anki-Modal
+  const [ankiOpen, setAnkiOpen] = useState(false);
+  const [ankiCreds, setAnkiCreds] = useState<AnkiCreds>({ anki_username: null, anki_password: null });
+  const [showAnkiPassword, setShowAnkiPassword] = useState(false);
+
   const [studentClass, setStudentClass] = useState('');
   const [studentSubject, setStudentSubject] = useState('');
   const [savingInfo, setSavingInfo] = useState(false);
@@ -109,11 +128,13 @@ export default function StudentDashboard() {
 
   const fetchData = async () => {
     try {
-      const [quizzesRes, resultsRes, filesRes, nextLessonRes] = await Promise.all([
+      const [quizzesRes, resultsRes, filesRes, nextLessonRes, todosRes, ankiRes] = await Promise.all([
         fetch(`/api/quizzes/student/${studentId}`),
         fetch('/api/results'),
         fetch(`/api/students/${studentId}/files`),
         fetch(`/api/students/${studentId}/next-lesson`),
+        fetch(`/api/students/${studentId}/todos`),
+        fetch(`/api/students/${studentId}/anki`),
       ]);
 
       if (!quizzesRes.ok || !resultsRes.ok) {
@@ -134,10 +155,26 @@ export default function StudentDashboard() {
           }
         }
       }
+      if (todosRes.ok) setTodos(await todosRes.json());
+      if (ankiRes.ok) setAnkiCreds(await ankiRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTodoComplete = async (todoId: number) => {
+    // Optimistic Update: sofort entfernen
+    setTodos((prev) => prev.filter((t) => t.id !== todoId));
+    try {
+      await fetch(`/api/students/${studentId}/todos/${todoId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+    } catch {
+      // Bei Fehler neu laden
+      fetchData();
     }
   };
 
@@ -173,17 +210,24 @@ export default function StudentDashboard() {
     const newTasks = { ...completedTasks, [taskKey]: !completedTasks[taskKey] };
     setCompletedTasks(newTasks);
 
-    if (!nextLesson || !nextLesson.id) return;
+    if (!nextLesson) return;
 
     setSavingTasks(true);
     try {
-      const res = await fetch(`/api/lesson-sessions/${nextLesson.id}`, {
+      // Über next-lesson PATCH: legt Session automatisch an falls noch keine existiert.
+      const res = await fetch(`/api/students/${studentId}/next-lesson`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completed_tasks: newTasks }),
+        body: JSON.stringify({ lesson_date: nextLesson.date, completed_tasks: newTasks }),
       });
       if (!res.ok) {
         setCompletedTasks(completedTasks);
+      } else {
+        const saved = await res.json();
+        // Stelle sicher, dass nextLesson.id gesetzt ist nach Auto-Create
+        if (saved?.id && !nextLesson.id) {
+          setNextLesson({ ...nextLesson, id: saved.id });
+        }
       }
     } catch {
       setCompletedTasks(completedTasks);
@@ -231,36 +275,69 @@ export default function StudentDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#eef3fb]">
-      <nav className="bg-[#032e65] shadow-sm">
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        background:
+          'radial-gradient(ellipse at top, #0a3b80 0%, #021d40 60%, #010d20 100%)',
+      }}
+    >
+      {/* Dot-Pattern Overlay wie im Login */}
+      <div
+        aria-hidden
+        className="fixed inset-0 opacity-20 pointer-events-none z-0"
+        style={{
+          backgroundImage:
+            'radial-gradient(rgba(255,255,255,0.25) 1px, transparent 1px)',
+          backgroundSize: '22px 22px',
+        }}
+      />
+
+      <nav className="shadow-lg relative z-10" style={{ background: '#708DC7' }}>
         <div className="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white">📊 Mein Dashboard</h1>
+            <h1 className="text-2xl font-bold text-white drop-shadow">📊 Mein Dashboard</h1>
           </div>
-          <button
-            onClick={handleLogout}
-            className="bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 font-medium"
-          >
-            Abmelden
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAnkiOpen(true)}
+              className="bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
+              title="Anki-Zugang"
+            >
+              <span className="text-xl">🃏</span>
+              <span className="hidden sm:inline">Anki</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 font-medium"
+            >
+              Abmelden
+            </button>
+          </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8 relative z-10">
 
         {/* Nächste Stunde */}
         {nextLesson && (
-          <div className={`rounded-lg shadow-lg p-5 border-l-4 mb-8 ${nextLesson.is_changed ? 'bg-red-50 border-red-500' : 'bg-white border-[#032e65]'}`}>
+          <div
+            className={`rounded-2xl shadow-2xl p-6 border-l-4 mb-6 ${nextLesson.is_changed ? 'border-red-400' : 'border-white/40'}`}
+            style={{
+              background: '#708DC7',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+            }}
+          >
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">📅 Nächste Stunde</p>
-                <p className={`text-xl font-bold ${nextLesson.is_changed ? 'text-red-700' : 'text-[#032e65]'}`}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/80 mb-1">📅 Nächste Stunde</p>
+                <p className={`text-2xl font-bold ${nextLesson.is_changed ? 'text-red-100' : 'text-white'}`}>
                   {new Date(nextLesson.date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </p>
-                <p className={`text-lg font-semibold mt-0.5 ${nextLesson.is_changed ? 'text-red-600' : 'text-gray-700'}`}>
+                <p className={`text-lg font-semibold mt-0.5 ${nextLesson.is_changed ? 'text-red-100' : 'text-white/95'}`}>
                   {nextLesson.start_time} Uhr &middot; {nextLesson.duration_minutes} Min.
                   {nextLesson.is_changed && (
-                    <span className="ml-2 text-sm font-normal text-red-500">(geändert von {nextLesson.standard_time} Uhr)</span>
+                    <span className="ml-2 text-sm font-normal text-red-100">(geändert von {nextLesson.standard_time} Uhr)</span>
                   )}
                 </p>
               </div>
@@ -269,19 +346,19 @@ export default function StudentDashboard() {
               )}
             </div>
             {nextLesson.theme && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-sm font-semibold text-gray-600 mb-1">🎓 Thema:</p>
-                <p className="text-sm text-gray-800">{nextLesson.theme}</p>
+              <div className="mt-3 pt-3 border-t border-white/30">
+                <p className="text-sm font-semibold text-white/80 mb-1">🎓 Thema:</p>
+                <p className="text-sm text-white">{nextLesson.theme}</p>
               </div>
             )}
             {nextLesson.notes && (
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <p className="text-sm font-semibold text-gray-600 mb-1">📝 Bis dahin erledigen:</p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{nextLesson.notes}</p>
+              <div className="mt-3 pt-3 border-t border-white/30">
+                <p className="text-sm font-semibold text-white/80 mb-1">📝 Bis dahin erledigen:</p>
+                <p className="text-sm text-white whitespace-pre-wrap">{nextLesson.notes}</p>
               </div>
             )}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm font-semibold text-gray-600 mb-3">✓ Vorbereitung für diese Stunde:</p>
+            <div className="mt-4 pt-4 border-t border-white/30">
+              <p className="text-sm font-semibold text-white/80 mb-3">✓ Vorbereitung für diese Stunde:</p>
               <div className="space-y-2">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -289,9 +366,9 @@ export default function StudentDashboard() {
                     checked={completedTasks.anki || false}
                     onChange={() => handleTaskToggle('anki')}
                     disabled={savingTasks}
-                    className="w-4 h-4 rounded"
+                    className="w-4 h-4 rounded accent-white"
                   />
-                  <span className="text-sm text-gray-700">Anki-Karten bearbeitet</span>
+                  <span className="text-sm text-white">Anki-Karten bearbeitet</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -299,9 +376,9 @@ export default function StudentDashboard() {
                     checked={completedTasks.worksheets || false}
                     onChange={() => handleTaskToggle('worksheets')}
                     disabled={savingTasks}
-                    className="w-4 h-4 rounded"
+                    className="w-4 h-4 rounded accent-white"
                   />
-                  <span className="text-sm text-gray-700">Arbeitsblätter & Tests bearbeitet</span>
+                  <span className="text-sm text-white">Arbeitsblätter & Tests bearbeitet</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -309,12 +386,46 @@ export default function StudentDashboard() {
                     checked={completedTasks.prepare || false}
                     onChange={() => handleTaskToggle('prepare')}
                     disabled={savingTasks}
-                    className="w-4 h-4 rounded"
+                    className="w-4 h-4 rounded accent-white"
                   />
-                  <span className="text-sm text-gray-700">Materialien vorbereitet</span>
+                  <span className="text-sm text-white">Materialien vorbereitet</span>
                 </label>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* To-Do Liste */}
+        {todos.length > 0 && (
+          <div
+            className="rounded-2xl shadow-2xl p-6 mb-8 border-l-4 border-red-400"
+            style={{
+              background: '#708DC7',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+            }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/80 mb-3">
+              📋 Meine Aufgaben ({todos.length})
+            </p>
+            <div className="space-y-2">
+              {todos.map((todo) => (
+                <label
+                  key={todo.id}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-white/15 hover:bg-white/25 cursor-pointer transition group"
+                >
+                  <input
+                    type="checkbox"
+                    checked={false}
+                    onChange={() => handleTodoComplete(todo.id)}
+                    className="w-5 h-5 mt-0.5 rounded accent-white cursor-pointer"
+                  />
+                  <span className="text-sm text-white flex-1 break-words">{todo.text}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-white/70 mt-3">
+              Hake eine Aufgabe ab — sie wird komplett entfernt.
+            </p>
           </div>
         )}
 
@@ -355,10 +466,10 @@ export default function StudentDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📝 Verfügbare Quizzes</h2>
+              <h2 className="text-2xl font-bold mb-4 text-white">📝 Verfügbare Quizzes</h2>
             <div className="space-y-3">
               {quizzes.length > 0 ? (
                 quizzes.map((quiz) => (
@@ -388,10 +499,10 @@ export default function StudentDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📈 Ergebnisse</h2>
+              <h2 className="text-2xl font-bold mb-4 text-white">📈 Ergebnisse</h2>
             <p className="text-sm text-gray-500 mb-3">Karte anklicken für Einzelauswertung</p>
             <div className="space-y-3">
               {results.length > 0 ? (
@@ -427,10 +538,10 @@ export default function StudentDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-4 text-[#032e65]">📚 Verfügbare Dokumente (Probetests, Übersichten)</h2>
+              <h2 className="text-2xl font-bold mb-4 text-white">📚 Verfügbare Dokumente (Probetests, Übersichten)</h2>
             <div className="space-y-3">
               {files.length === 0 ? (
                 <p className="text-gray-500 text-sm">Noch keine Dokumente vorhanden</p>
@@ -512,10 +623,10 @@ export default function StudentDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📤 Dokumente hochladen (Tests, ...)</h2>
+              <h2 className="text-2xl font-bold mb-6 text-white">📤 Dokumente hochladen (Tests, ...)</h2>
               <form onSubmit={handleUpload} className="space-y-4">
                 <div>
                   <input
@@ -558,6 +669,91 @@ export default function StudentDashboard() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Anki-Modal */}
+      <AnimatePresence>
+        {ankiOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => { setAnkiOpen(false); setShowAnkiPassword(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+              className="rounded-2xl shadow-2xl w-full max-w-sm p-6"
+              style={{ background: '#708DC7' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span className="text-2xl">🃏</span> Anki-Zugang
+                </h2>
+                <button
+                  onClick={() => { setAnkiOpen(false); setShowAnkiPassword(false); }}
+                  className="text-white/70 hover:text-white text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              {!ankiCreds.anki_username && !ankiCreds.anki_password ? (
+                <p className="text-sm text-white/90 bg-white/10 p-4 rounded-lg mb-4">
+                  Es sind noch keine Anki-Zugangsdaten hinterlegt. Bitte sprich deinen Lehrer an.
+                </p>
+              ) : (
+                <div className="space-y-3 mb-5">
+                  <div>
+                    <label className="block text-xs font-semibold text-white/80 mb-1 uppercase tracking-wide">
+                      Benutzername / E-Mail
+                    </label>
+                    <div className="bg-white/15 border border-white/30 rounded-lg px-3 py-2 text-white text-sm break-all">
+                      {ankiCreds.anki_username || '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-white/80 mb-1 uppercase tracking-wide">
+                      Passwort
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <div className="flex-1 bg-white/15 border border-white/30 rounded-lg px-3 py-2 text-white text-sm font-mono break-all">
+                        {ankiCreds.anki_password
+                          ? showAnkiPassword
+                            ? ankiCreds.anki_password
+                            : '•'.repeat(Math.min(ankiCreds.anki_password.length, 12))
+                          : '—'}
+                      </div>
+                      {ankiCreds.anki_password && (
+                        <button
+                          onClick={() => setShowAnkiPassword((v) => !v)}
+                          className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-lg transition"
+                          title={showAnkiPassword ? 'Verbergen' : 'Anzeigen'}
+                        >
+                          {showAnkiPassword ? '🙈' : '👁'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <a
+                href="https://ankiweb.net/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full text-center bg-white text-[#032e65] font-semibold py-2.5 rounded-lg hover:bg-gray-100 transition shadow"
+              >
+                🔗 Zu AnkiWeb
+              </a>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Detail-Modal */}
       <AnimatePresence>

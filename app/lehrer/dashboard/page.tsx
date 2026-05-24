@@ -32,6 +32,12 @@ interface StudentFile {
   completed: boolean;
 }
 
+interface Todo {
+  id: number;
+  text: string;
+  created_at: string;
+}
+
 interface DetailQuestion {
   id: string;
   text: string;
@@ -137,6 +143,20 @@ export default function TeacherDashboard() {
   const [filesLoading, setFilesLoading] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfUploading, setPdfUploading] = useState(false);
+
+  // To-Dos + Anki Management Modal (pro Schüler)
+  const [profileModal, setProfileModal] = useState<{ id: number; name: string } | null>(null);
+  const [studentTodos, setStudentTodos] = useState<Todo[]>([]);
+  const [newTodoText, setNewTodoText] = useState('');
+  const [todoSaving, setTodoSaving] = useState(false);
+  const [ankiUsername, setAnkiUsername] = useState('');
+  const [ankiPassword, setAnkiPassword] = useState('');
+  const [showAnkiPasswordEdit, setShowAnkiPasswordEdit] = useState(false);
+  const [ankiSaving, setAnkiSaving] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  // Anzahl offene Todos pro Schüler (für Anzeige in der Liste)
+  const [todoCounts, setTodoCounts] = useState<Record<number, number>>({});
 
   // Completion tracking
   const [completedSessions, setCompletedSessions] = useState<Map<string, Set<string>>>(new Map());
@@ -388,6 +408,120 @@ export default function TeacherDashboard() {
       alert('Netzwerkfehler');
     }
   };
+
+  // Profil-Modal (To-Dos + Anki) öffnen
+  const openProfileModal = async (student: Student) => {
+    setProfileModal({ id: student.id, name: student.name });
+    setNewTodoText('');
+    setShowAnkiPasswordEdit(false);
+    setProfileLoading(true);
+    try {
+      const [todosRes, ankiRes] = await Promise.all([
+        fetch(`/api/students/${student.id}/todos`, { credentials: 'include' }),
+        fetch(`/api/students/${student.id}/anki`, { credentials: 'include' }),
+      ]);
+      if (todosRes.ok) setStudentTodos(await todosRes.json());
+      if (ankiRes.ok) {
+        const data = await ankiRes.json();
+        setAnkiUsername(data.anki_username || '');
+        setAnkiPassword(data.anki_password || '');
+      }
+    } catch (err) {
+      console.error('Profile fetch error:', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleAddTodo = async () => {
+    if (!profileModal || !newTodoText.trim()) return;
+    setTodoSaving(true);
+    try {
+      const res = await fetch(`/api/students/${profileModal.id}/todos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text: newTodoText.trim() }),
+      });
+      if (res.ok) {
+        const todo = await res.json();
+        setStudentTodos((prev) => [todo, ...prev]);
+        setNewTodoText('');
+        setTodoCounts((prev) => ({ ...prev, [profileModal.id]: (prev[profileModal.id] || 0) + 1 }));
+      } else {
+        alert('Fehler beim Hinzufügen');
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setTodoSaving(false);
+    }
+  };
+
+  const handleDeleteTodo = async (todoId: number) => {
+    if (!profileModal) return;
+    try {
+      const res = await fetch(`/api/students/${profileModal.id}/todos/${todoId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setStudentTodos((prev) => prev.filter((t) => t.id !== todoId));
+        setTodoCounts((prev) => ({ ...prev, [profileModal.id]: Math.max(0, (prev[profileModal.id] || 1) - 1) }));
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    }
+  };
+
+  const handleSaveAnki = async () => {
+    if (!profileModal) return;
+    setAnkiSaving(true);
+    try {
+      const res = await fetch(`/api/students/${profileModal.id}/anki`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          anki_username: ankiUsername || null,
+          anki_password: ankiPassword || null,
+        }),
+      });
+      if (res.ok) {
+        alert('Anki-Zugangsdaten gespeichert');
+      } else {
+        alert('Fehler beim Speichern');
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setAnkiSaving(false);
+    }
+  };
+
+  // Lädt Todo-Counts für alle Schüler (für Badge in Schülerliste)
+  const fetchTodoCounts = async () => {
+    try {
+      const counts: Record<number, number> = {};
+      await Promise.all(
+        students.map(async (s) => {
+          const res = await fetch(`/api/students/${s.id}/todos`, { credentials: 'include' });
+          if (res.ok) {
+            const list: Todo[] = await res.json();
+            counts[s.id] = list.length;
+          }
+        })
+      );
+      setTodoCounts(counts);
+    } catch (err) {
+      console.error('Todo counts fetch error:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (students.length > 0) fetchTodoCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students.length]);
 
   const handleDeleteStudent = async (id: number, name: string) => {
     if (!confirm(`Schüler "${name}" wirklich löschen? Alle Ergebnisse werden ebenfalls gelöscht.`)) return;
@@ -732,10 +866,26 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#eef3fb]">
-      <nav className="bg-[#032e65] shadow-sm">
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        background:
+          'radial-gradient(ellipse at top, #0a3b80 0%, #021d40 60%, #010d20 100%)',
+      }}
+    >
+      <div
+        aria-hidden
+        className="fixed inset-0 opacity-20 pointer-events-none z-0"
+        style={{
+          backgroundImage:
+            'radial-gradient(rgba(255,255,255,0.25) 1px, transparent 1px)',
+          backgroundSize: '22px 22px',
+        }}
+      />
+
+      <nav className="shadow-lg relative z-10" style={{ background: '#708DC7' }}>
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-white">🎓 Lehrer-Dashboard</h1>
+          <h1 className="text-2xl font-bold text-white drop-shadow">🎓 Lehrer-Dashboard</h1>
           <button
             onClick={handleLogout}
             className="bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 font-medium"
@@ -745,7 +895,7 @@ export default function TeacherDashboard() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8 relative z-10">
         {/* Icon-Tab-Leiste */}
         <div className="mb-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <GlassIconButton
@@ -789,10 +939,10 @@ export default function TeacherDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📤 Quiz hochladen</h2>
+              <h2 className="text-2xl font-bold mb-6 text-white">📤 Quiz hochladen</h2>
               <form onSubmit={handleFileUpload} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -862,19 +1012,19 @@ export default function TeacherDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📝 Quizzes verwalten</h2>
+              <h2 className="text-2xl font-bold mb-6 text-white">📝 Quizzes verwalten</h2>
               {quizzes.length === 0 ? (
-                <p className="text-center py-8 text-gray-500">Noch keine Quizzes hochgeladen</p>
+                <p className="text-center py-8 text-white/80">Noch keine Quizzes hochgeladen</p>
               ) : (
                 <div className="space-y-2">
                   {quizzes.map((q) => (
-                    <div key={q.id} className="flex items-center justify-between bg-[#f0f4f8] p-4 rounded-lg">
+                    <div key={q.id} className="flex items-center justify-between bg-white/15 backdrop-blur-sm border border-white/25 p-4 rounded-lg">
                       <div>
-                        <p className="font-semibold text-gray-800">{q.title}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="font-semibold text-white">{q.title}</p>
+                        <p className="text-xs text-white/70">
                           {q.student_id ? 'Für Schüler' : 'Für alle Schüler'} • {new Date(q.uploaded_at).toLocaleDateString('de-DE')}
                         </p>
                       </div>
@@ -899,34 +1049,34 @@ export default function TeacherDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📊 Ergebnisse</h2>
-              <p className="text-sm text-gray-500 mb-3">Zeile anklicken für Einzelauswertung</p>
-              <div className="overflow-x-auto">
+              <h2 className="text-2xl font-bold mb-6 text-white">📊 Ergebnisse</h2>
+              <p className="text-sm text-white/80 mb-3">Zeile anklicken für Einzelauswertung</p>
+              <div className="overflow-x-auto rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
                 <table className="w-full text-sm">
-                  <thead className="bg-[#eef3fb] border-b">
+                  <thead className="bg-white/20 border-b border-white/30">
                     <tr>
-                      <th className="px-4 py-2 text-left font-semibold text-gray-700">Schüler</th>
-                      <th className="px-4 py-2 text-left font-semibold text-gray-700">Quiz</th>
-                      <th className="px-4 py-2 text-left font-semibold text-gray-700">Punktzahl</th>
-                      <th className="px-4 py-2 text-left font-semibold text-gray-700">Datum</th>
+                      <th className="px-4 py-2 text-left font-semibold text-white">Schüler</th>
+                      <th className="px-4 py-2 text-left font-semibold text-white">Quiz</th>
+                      <th className="px-4 py-2 text-left font-semibold text-white">Punktzahl</th>
+                      <th className="px-4 py-2 text-left font-semibold text-white">Datum</th>
                     </tr>
                   </thead>
                   <tbody>
                     {results.map((r) => (
                       <tr
                         key={r.id}
-                        className="border-b hover:bg-[#eef3fb] cursor-pointer transition"
+                        className="border-b border-white/15 hover:bg-white/15 cursor-pointer transition"
                         onClick={() => fetchResultDetail(r.id)}
                       >
-                        <td className="px-4 py-2 text-gray-800">{r.name}</td>
-                        <td className="px-4 py-2 text-gray-800">{r.title}</td>
-                        <td className="px-4 py-2 text-green-600 font-semibold">
+                        <td className="px-4 py-2 text-white">{r.name}</td>
+                        <td className="px-4 py-2 text-white">{r.title}</td>
+                        <td className="px-4 py-2 text-green-200 font-semibold">
                           {Number(r.score).toFixed(1)}%
                         </td>
-                        <td className="px-4 py-2 text-gray-600">
+                        <td className="px-4 py-2 text-white/80">
                           {new Date(r.completed_at).toLocaleDateString('de-DE')}
                         </td>
                       </tr>
@@ -934,7 +1084,7 @@ export default function TeacherDashboard() {
                   </tbody>
                 </table>
                 {results.length === 0 && (
-                  <p className="text-center py-8 text-gray-500">Noch keine Ergebnisse</p>
+                  <p className="text-center py-8 text-white/80">Noch keine Ergebnisse</p>
                 )}
               </div>
               </motion.div>
@@ -948,10 +1098,10 @@ export default function TeacherDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">👥 Registrierte Schüler</h2>
+              <h2 className="text-2xl font-bold mb-6 text-white">👥 Registrierte Schüler</h2>
               <button
                 onClick={() => setNewStudentModal(true)}
                 className="mb-6 w-full bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition"
@@ -962,20 +1112,38 @@ export default function TeacherDashboard() {
               {students.map((s) => {
                 const sc = schedules.find((x: any) => x.student_id === s.id);
                 const DAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+                const openTodos = todoCounts[s.id] || 0;
                 return (
-                <div key={s.id} className="p-3 bg-[#eef3fb] rounded-lg border border-[#dce8f7]">
-                  <p className="font-semibold text-gray-800">{s.name}</p>
-                  <p className="text-sm text-gray-500">
+                <div key={s.id} className="p-3 bg-white/15 backdrop-blur-sm rounded-lg border border-white/30">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-white">{s.name}</p>
+                    {openTodos > 0 && (
+                      <span
+                        className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500 text-white shadow"
+                        title={`${openTodos} offene To-Do${openTodos === 1 ? '' : 's'}`}
+                      >
+                        📋 {openTodos}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-white/70">
                     Seit {new Date(s.created_at).toLocaleDateString('de-DE')}
                   </p>
                   {sc ? (
-                    <p className="text-xs text-[#032e65] font-medium mt-0.5 mb-2">
+                    <p className="text-xs text-white font-medium mt-0.5 mb-2">
                       ⏰ {DAYS[sc.day_of_week]} · {sc.start_time} Uhr · {sc.duration_minutes} Min.
                     </p>
                   ) : (
-                    <p className="text-xs text-gray-400 mt-0.5 mb-2">Keine Grundstunde</p>
+                    <p className="text-xs text-white/60 mt-0.5 mb-2">Keine Grundstunde</p>
                   )}
                   <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => openProfileModal(s)}
+                      className="flex-1 text-xs bg-rose-600 text-white px-2 py-1 rounded hover:bg-rose-700 transition"
+                      title="To-Dos & Anki"
+                    >
+                      📋 Profil
+                    </button>
                     <button
                       onClick={() => openFilesModal(s)}
                       className="flex-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
@@ -1031,10 +1199,10 @@ export default function TeacherDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – Kalender-Übersicht</h2>
+              <h2 className="text-2xl font-bold mb-6 text-white">📅 Stundenplan – Kalender-Übersicht</h2>
 
               {/* Kalender-Grid */}
               <div className="space-y-3">
@@ -1158,8 +1326,8 @@ export default function TeacherDashboard() {
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden" }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                style={{ overflow: "hidden", background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
               >
               <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📅 Stundenplan – nächste 2 Wochen (Zeilen-Ansicht)</h2>
         {calendarDays.length === 0 ? (
@@ -1256,6 +1424,151 @@ export default function TeacherDashboard() {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Profil-Modal (To-Dos + Anki) */}
+      <AnimatePresence>
+        {profileModal && (
+          <motion.div
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setProfileModal(null)}
+          >
+            <motion.div
+              variants={modalContentVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              style={{ background: '#708DC7' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-5">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span className="text-2xl">📋</span> {profileModal.name}
+                  </h2>
+                  <button
+                    onClick={() => setProfileModal(null)}
+                    className="text-white/70 hover:text-white text-2xl leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {profileLoading ? (
+                  <p className="text-white text-sm text-center py-4">Lädt...</p>
+                ) : (
+                  <>
+                    {/* To-Dos */}
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-white uppercase tracking-wide mb-2">
+                        Offene Aufgaben ({studentTodos.length})
+                      </h3>
+                      <div className="space-y-2 mb-3">
+                        {studentTodos.length === 0 ? (
+                          <p className="text-sm text-white/70 bg-white/10 rounded-lg p-3 text-center">
+                            Keine offenen Aufgaben
+                          </p>
+                        ) : (
+                          studentTodos.map((t) => (
+                            <div
+                              key={t.id}
+                              className="flex items-start gap-2 p-3 rounded-lg bg-red-500/30 border border-red-300/50"
+                            >
+                              <span className="text-sm text-white flex-1 break-words">{t.text}</span>
+                              <button
+                                onClick={() => handleDeleteTodo(t.id)}
+                                className="text-white/80 hover:text-white text-sm"
+                                title="Löschen"
+                              >
+                                🗑
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newTodoText}
+                          onChange={(e) => setNewTodoText(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddTodo()}
+                          placeholder="Neue Aufgabe..."
+                          className="dark-bg-input flex-1 px-3 py-2 bg-white/15 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/60"
+                        />
+                        <button
+                          onClick={handleAddTodo}
+                          disabled={todoSaving || !newTodoText.trim()}
+                          className="bg-white text-[#032e65] px-4 py-2 rounded-lg font-medium hover:bg-gray-100 disabled:opacity-50 transition"
+                        >
+                          {todoSaving ? '...' : '+ Hinzufügen'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Anki-Credentials */}
+                    <div className="pt-5 border-t border-white/30">
+                      <h3 className="text-sm font-semibold text-white uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <span className="text-lg">🃏</span> Anki-Zugangsdaten
+                      </h3>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs text-white/80 mb-1">Benutzername / E-Mail</label>
+                          <input
+                            type="text"
+                            value={ankiUsername}
+                            onChange={(e) => setAnkiUsername(e.target.value)}
+                            placeholder="anki@example.com"
+                            className="dark-bg-input w-full px-3 py-2 bg-white/15 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/60"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/80 mb-1">Passwort</label>
+                          <div className="flex gap-2">
+                            <input
+                              type={showAnkiPasswordEdit ? 'text' : 'password'}
+                              value={ankiPassword}
+                              onChange={(e) => setAnkiPassword(e.target.value)}
+                              placeholder="••••••••"
+                              className="dark-bg-input flex-1 px-3 py-2 bg-white/15 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/60 font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowAnkiPasswordEdit((v) => !v)}
+                              className="px-3 bg-white/20 hover:bg-white/30 text-white rounded-lg text-lg transition"
+                              title={showAnkiPasswordEdit ? 'Verbergen' : 'Anzeigen'}
+                            >
+                              {showAnkiPasswordEdit ? '🙈' : '👁'}
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleSaveAnki}
+                          disabled={ankiSaving}
+                          className="w-full bg-white text-[#032e65] py-2 rounded-lg font-semibold hover:bg-gray-100 disabled:opacity-50 transition"
+                        >
+                          {ankiSaving ? 'Speichert...' : '💾 Anki-Daten speichern'}
+                        </button>
+                        <a
+                          href="https://ankiweb.net/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-center text-sm text-white/90 hover:text-white underline"
+                        >
+                          🔗 ankiweb.net
+                        </a>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Dateien-Modal */}
       <AnimatePresence>

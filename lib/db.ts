@@ -154,6 +154,34 @@ export async function initializeDB() {
       )
     `;
 
+    // ── Student To-Dos ────────────────────────────────────────────────────────
+    await sql`
+      CREATE TABLE IF NOT EXISTS student_todos (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    // ── Anki-Zugangsdaten pro Schüler ─────────────────────────────────────────
+    if (!(await columnExists('students', 'anki_username'))) {
+      try {
+        await sql`ALTER TABLE students ADD COLUMN anki_username VARCHAR(255)`;
+        console.log('✓ Added anki_username column to students');
+      } catch (e) {
+        console.error('✗ Failed to add anki_username:', e instanceof Error ? e.message : String(e));
+      }
+    }
+    if (!(await columnExists('students', 'anki_password'))) {
+      try {
+        await sql`ALTER TABLE students ADD COLUMN anki_password VARCHAR(255)`;
+        console.log('✓ Added anki_password column to students');
+      } catch (e) {
+        console.error('✗ Failed to add anki_password:', e instanceof Error ? e.message : String(e));
+      }
+    }
+
     console.log('Database tables initialized');
   } catch (error) {
     console.error('Database initialization error:', error);
@@ -499,4 +527,52 @@ export async function getAllResults() {
 
 export async function deleteResult(resultId: number) {
   await sql`DELETE FROM results WHERE id = ${resultId}`;
+}
+
+// ── Student To-Dos ──────────────────────────────────────────────────────────
+export async function getStudentTodos(studentId: number) {
+  await ensureSchema();
+  const rows = await sql`
+    SELECT * FROM student_todos
+    WHERE student_id = ${studentId}
+    ORDER BY created_at DESC
+  `;
+  return rows;
+}
+
+export async function createStudentTodo(studentId: number, text: string) {
+  await ensureSchema();
+  const rows = await sql`
+    INSERT INTO student_todos (student_id, text)
+    VALUES (${studentId}, ${text})
+    RETURNING *
+  `;
+  return rows[0];
+}
+
+export async function deleteStudentTodo(todoId: number) {
+  await ensureSchema();
+  await sql`DELETE FROM student_todos WHERE id = ${todoId}`;
+}
+
+// ── Anki Credentials ────────────────────────────────────────────────────────
+export async function getStudentAnki(studentId: number) {
+  await ensureSchema();
+  const rows = await sql`
+    SELECT anki_username, anki_password FROM students WHERE id = ${studentId}
+  `;
+  return rows[0] || { anki_username: null, anki_password: null };
+}
+
+export async function updateStudentAnki(
+  studentId: number,
+  username: string | null,
+  password: string | null
+) {
+  await ensureSchema();
+  await sql`
+    UPDATE students
+    SET anki_username = ${username}, anki_password = ${password}
+    WHERE id = ${studentId}
+  `;
 }
