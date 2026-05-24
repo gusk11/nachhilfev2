@@ -70,7 +70,7 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [quizTitle, setQuizTitle] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState('');
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [detailResult, setDetailResult] = useState<DetailResult | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -829,9 +829,7 @@ export default function TeacherDashboard() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('title', quizTitle);
-      if (selectedStudent) {
-        formData.append('studentId', selectedStudent);
-      }
+      formData.append('studentIds', selectedStudents.join(','));
 
       const res = await fetch('/api/quizzes/upload', {
         method: 'POST',
@@ -841,7 +839,7 @@ export default function TeacherDashboard() {
       if (res.ok) {
         setFile(null);
         setQuizTitle('');
-        setSelectedStudent('');
+        setSelectedStudents([]);
         alert('Quiz erfolgreich hochgeladen!');
         fetchData();
       } else {
@@ -993,20 +991,36 @@ export default function TeacherDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Für Schüler (optional)
+                    Für Schüler (optional, Mehrfachauswahl)
                   </label>
-                  <select
-                    value={selectedStudent}
-                    onChange={(e) => setSelectedStudent(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
-                  >
-                    <option value="">Für alle Schüler</option>
-                    {students.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex flex-wrap gap-2">
+                    {students.map((s) => {
+                      const selected = selectedStudents.includes(String(s.id));
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedStudents((prev) =>
+                              selected
+                                ? prev.filter((id) => id !== String(s.id))
+                                : [...prev, String(s.id)]
+                            )
+                          }
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
+                            selected
+                              ? 'bg-[#032e65] text-white border-[#032e65]'
+                              : 'bg-white text-gray-700 border-gray-300 hover:border-[#032e65]'
+                          }`}
+                        >
+                          {s.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedStudents.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-1">Kein Schüler ausgewählt → für alle sichtbar</p>
+                  )}
                 </div>
 
                 <button

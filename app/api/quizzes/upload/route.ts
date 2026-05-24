@@ -17,27 +17,31 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const title = formData.get('title') as string;
-    const studentId = formData.get('studentId');
+    const studentIdsRaw = formData.get('studentIds') as string | null;
 
     if (!file || !title) {
       return NextResponse.json({ error: 'File and title required' }, { status: 400 });
     }
 
-    // Read HTML file
     const text = await file.text();
-
-    // Parse HTML format (extrahiert eingebettetes <script id="quiz-data"> JSON)
     const parsed = parseQuizHtml(text);
 
-    // Create quiz with parsed questions directly in DB
-    const quiz = await createQuiz(
-      title,
-      null,
-      studentId ? parseInt(studentId as string) : null,
-      parsed.questions
+    const studentIds =
+      studentIdsRaw && studentIdsRaw.length > 0
+        ? studentIdsRaw.split(',').map((id) => parseInt(id)).filter((id) => !isNaN(id))
+        : [];
+
+    if (studentIds.length === 0) {
+      // Für alle Schüler
+      const quiz = await createQuiz(title, null, null, parsed.questions);
+      return NextResponse.json({ success: true, quiz });
+    }
+
+    const quizzes = await Promise.all(
+      studentIds.map((id) => createQuiz(title, null, id, parsed.questions))
     );
 
-    return NextResponse.json({ success: true, quiz });
+    return NextResponse.json({ success: true, quizzes });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('Upload error:', error);
