@@ -57,6 +57,14 @@ export async function initializeDB() {
       // Column might already exist
     }
 
+    // file_key war früher NOT NULL — seit Umstellung auf direkte DB-Speicherung
+    // werden Quizzes ohne Blob-Key angelegt. Constraint droppen falls vorhanden.
+    try {
+      await sql`ALTER TABLE quizzes ALTER COLUMN file_key DROP NOT NULL`;
+    } catch (e) {
+      // Already nullable or column missing
+    }
+
     await sql`
       CREATE TABLE IF NOT EXISTS results (
         id SERIAL PRIMARY KEY,
