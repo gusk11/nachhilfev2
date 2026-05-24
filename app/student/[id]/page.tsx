@@ -75,7 +75,11 @@ interface DetailResult {
 
 function formatAnswer(answer: unknown, type: string): string {
   if (answer === undefined || answer === null) return 'Keine Antwort';
-  if (type === 'true-false') return answer ? 'Wahr' : 'Falsch';
+  if (type === 'true-false') {
+    // Handle both boolean and string values
+    const bool = answer === true || answer === 'true';
+    return bool ? 'Wahr' : 'Falsch';
+  }
   return String(answer);
 }
 
@@ -802,7 +806,15 @@ export default function StudentDashboard() {
                   <div className="space-y-4">
                     {detailResult.questions.map((q, i) => {
                       const studentAnswer = detailResult.answers![q.id];
-                      const isCorrect = studentAnswer === q.correctAnswer;
+                      // Normalize boolean comparison (handle both string and boolean values)
+                      let isCorrect = false;
+                      if (q.type === 'true-false') {
+                        const answerBool = studentAnswer === true || studentAnswer === 'true';
+                        const correctBool = q.correctAnswer === true || q.correctAnswer === 'true';
+                        isCorrect = answerBool === correctBool && studentAnswer !== undefined;
+                      } else {
+                        isCorrect = studentAnswer === q.correctAnswer;
+                      }
                       return (
                         <div
                           key={q.id}
