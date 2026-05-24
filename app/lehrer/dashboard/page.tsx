@@ -154,6 +154,16 @@ export default function TeacherDashboard() {
   const [showAnkiPasswordEdit, setShowAnkiPasswordEdit] = useState(false);
   const [ankiSaving, setAnkiSaving] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [profileNextLesson, setProfileNextLesson] = useState<{
+    date: string;
+    start_time: string;
+    duration_minutes: number;
+    standard_time: string;
+    theme: string | null;
+    notes: string | null;
+    is_changed: boolean;
+    completed_tasks: Record<string, boolean> | null;
+  } | null>(null);
 
   // Anzahl offene Todos pro Schüler (für Anzeige in der Liste)
   const [todoCounts, setTodoCounts] = useState<Record<number, number>>({});
@@ -414,17 +424,23 @@ export default function TeacherDashboard() {
     setProfileModal({ id: student.id, name: student.name });
     setNewTodoText('');
     setShowAnkiPasswordEdit(false);
+    setProfileNextLesson(null);
     setProfileLoading(true);
     try {
-      const [todosRes, ankiRes] = await Promise.all([
+      const [todosRes, ankiRes, nlRes] = await Promise.all([
         fetch(`/api/students/${student.id}/todos`, { credentials: 'include' }),
         fetch(`/api/students/${student.id}/anki`, { credentials: 'include' }),
+        fetch(`/api/students/${student.id}/next-lesson`, { credentials: 'include' }),
       ]);
       if (todosRes.ok) setStudentTodos(await todosRes.json());
       if (ankiRes.ok) {
         const data = await ankiRes.json();
         setAnkiUsername(data.anki_username || '');
         setAnkiPassword(data.anki_password || '');
+      }
+      if (nlRes.ok) {
+        const nl = await nlRes.json();
+        if (nl.next_lesson) setProfileNextLesson(nl.next_lesson);
       }
     } catch (err) {
       console.error('Profile fetch error:', err);
@@ -1462,6 +1478,47 @@ export default function TeacherDashboard() {
                   <p className="text-white text-sm text-center py-4">Lädt...</p>
                 ) : (
                   <>
+                    {/* Nächste Stunde + Vorbereitungs-Checkliste */}
+                    {profileNextLesson && (
+                      <div
+                        className={`rounded-xl p-4 mb-6 border-l-4 ${profileNextLesson.is_changed ? 'border-red-300' : 'border-white/50'} bg-white/10`}
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide text-white/80 mb-1">📅 Nächste Stunde</p>
+                        <p className="text-lg font-bold text-white">
+                          {new Date(profileNextLesson.date + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </p>
+                        <p className="text-sm text-white/95">
+                          {profileNextLesson.start_time} Uhr · {profileNextLesson.duration_minutes} Min.
+                          {profileNextLesson.is_changed && (
+                            <span className="ml-2 text-xs text-red-100">(geändert von {profileNextLesson.standard_time})</span>
+                          )}
+                        </p>
+                        {profileNextLesson.theme && (
+                          <p className="text-sm text-white/90 mt-2"><span className="font-semibold">🎓 </span>{profileNextLesson.theme}</p>
+                        )}
+                        <div className="mt-3 pt-3 border-t border-white/30">
+                          <p className="text-xs font-semibold text-white/80 mb-2">✓ Vorbereitung des Schülers:</p>
+                          <ul className="space-y-1 text-sm text-white">
+                            {[
+                              { key: 'anki', label: 'Anki-Karten bearbeitet' },
+                              { key: 'worksheets', label: 'Arbeitsblätter & Tests bearbeitet' },
+                              { key: 'prepare', label: 'Materialien vorbereitet' },
+                            ].map((t) => {
+                              const done = !!profileNextLesson.completed_tasks?.[t.key];
+                              return (
+                                <li key={t.key} className="flex items-center gap-2">
+                                  <span className={`inline-flex w-4 h-4 items-center justify-center rounded border ${done ? 'bg-white text-[#032e65] border-white' : 'border-white/60'}`}>
+                                    {done ? '✓' : ''}
+                                  </span>
+                                  <span className={done ? '' : 'text-white/70'}>{t.label}</span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
                     {/* To-Dos */}
                     <div className="mb-6">
                       <h3 className="text-sm font-semibold text-white uppercase tracking-wide mb-2">
