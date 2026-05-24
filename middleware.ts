@@ -5,14 +5,19 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Public routes
-  if (pathname === '/' || pathname === '/lehrer' || pathname.startsWith('/api/auth/')) {
+  if (
+    pathname === '/' ||
+    pathname === '/lehrer' ||
+    pathname === '/schueler' ||
+    pathname.startsWith('/api/auth/')
+  ) {
     return NextResponse.next();
   }
 
   // Protected routes - einfach nur checken ob Token existiert
   if (pathname.startsWith('/student/') || pathname.startsWith('/lehrer/dashboard')) {
     if (!token) {
-      const loginUrl = pathname.startsWith('/student') ? '/' : '/lehrer';
+      const loginUrl = pathname.startsWith('/student') ? '/schueler' : '/lehrer';
       return NextResponse.redirect(new URL(loginUrl, request.url));
     }
   }

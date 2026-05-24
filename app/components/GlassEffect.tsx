@@ -94,3 +94,37 @@ export const GlassButton: React.FC<{
     </div>
   </div>
 );
+
+/**
+ * Kleiner quadratischer Icon-Button für die horizontale Tab-Leiste.
+ * Zeigt nur das Emoji. Tooltip mit Label erscheint beim Hover.
+ */
+export const GlassIconButton: React.FC<{
+  emoji: string;
+  label: string;
+  onClick?: () => void;
+  isActive?: boolean;
+}> = ({ emoji, label, onClick, isActive }) => (
+  <div onClick={onClick} className="group relative">
+    <GlassEffect
+      className={`rounded-2xl h-16 w-16 sm:h-20 sm:w-20 flex items-center justify-center transition-all duration-300 ${
+        isActive
+          ? 'bg-white/40 ring-2 ring-[#032e65]/40 scale-105'
+          : 'hover:bg-white/20 hover:scale-105'
+      }`}
+    >
+      <div className="flex items-center justify-center w-full h-full">
+        <span className="text-3xl sm:text-4xl transition-transform duration-300 group-hover:scale-110">
+          {emoji}
+        </span>
+      </div>
+    </GlassEffect>
+
+    {/* Tooltip oben */}
+    <div className="absolute left-1/2 -translate-x-1/2 -top-9 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+      <div className="text-xs font-semibold text-white bg-[#032e65] px-3 py-1 rounded-full whitespace-nowrap shadow-lg">
+        {label}
+      </div>
+    </div>
+  </div>
+);

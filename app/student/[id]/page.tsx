@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { accordionContentVariants, rotateArrowVariants } from '@/app/lib/motionVariants';
-import { GlassButton } from '@/app/components/GlassEffect';
+import { GlassIconButton } from '@/app/components/GlassEffect';
 
 interface Quiz {
   id: number;
@@ -240,43 +240,32 @@ export default function StudentDashboard() {
           </div>
         )}
 
-        {/* Accordion Navigation - Glass Style */}
-        <div className="mb-8 space-y-3">
-            <GlassButton
+        {/* Icon-Tab-Leiste */}
+        <div className="mb-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            <GlassIconButton
               emoji="📝"
               label="Verfügbare Quizzes"
-              isOpen={openSection === 'quizzes'}
+              isActive={openSection === 'quizzes'}
               onClick={() => toggleSection('quizzes')}
-            >
-              Verfügbare Quizzes
-            </GlassButton>
-
-            <GlassButton
+            />
+            <GlassIconButton
               emoji="📈"
               label="Meine Ergebnisse"
-              isOpen={openSection === 'results'}
+              isActive={openSection === 'results'}
               onClick={() => toggleSection('results')}
-            >
-              Ergebnisse
-            </GlassButton>
-
-            <GlassButton
+            />
+            <GlassIconButton
               emoji="📚"
               label="Verfügbare Dokumente"
-              isOpen={openSection === 'availableDocuments'}
+              isActive={openSection === 'availableDocuments'}
               onClick={() => toggleSection('availableDocuments')}
-            >
-              Dokumente
-            </GlassButton>
-
-            <GlassButton
+            />
+            <GlassIconButton
               emoji="📤"
               label="Dateien hochladen"
-              isOpen={openSection === 'uploadDocuments'}
+              isActive={openSection === 'uploadDocuments'}
               onClick={() => toggleSection('uploadDocuments')}
-            >
-              Dateien hochladen
-            </GlassButton>
+            />
         </div>
 
         {/* Content Sections */}

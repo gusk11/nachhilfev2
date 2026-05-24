@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalVariants, modalContentVariants, accordionContentVariants, rotateArrowVariants } from '@/app/lib/motionVariants';
-import { GlassButton } from '@/app/components/GlassEffect';
+import { GlassIconButton } from '@/app/components/GlassEffect';
 import RichContent from '@/app/components/RichContent';
 
 interface Student {
@@ -727,43 +727,32 @@ export default function TeacherDashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Accordion Navigation - Glass Style */}
-        <div className="mb-8 space-y-3">
-            <GlassButton
+        {/* Icon-Tab-Leiste */}
+        <div className="mb-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            <GlassIconButton
               emoji="📤"
               label="Quiz hochladen"
-              isOpen={openSection === 'upload'}
+              isActive={openSection === 'upload'}
               onClick={() => toggleSection('upload')}
-            >
-              Quiz hochladen
-            </GlassButton>
-
-            <GlassButton
+            />
+            <GlassIconButton
               emoji="📊"
               label="Ergebnisse anzeigen"
-              isOpen={openSection === 'results'}
+              isActive={openSection === 'results'}
               onClick={() => toggleSection('results')}
-            >
-              Ergebnisse
-            </GlassButton>
-
-            <GlassButton
+            />
+            <GlassIconButton
               emoji="👥"
               label="Schüler verwalten"
-              isOpen={openSection === 'students'}
+              isActive={openSection === 'students'}
               onClick={() => toggleSection('students')}
-            >
-              Registrierte Schüler
-            </GlassButton>
-
-            <GlassButton
+            />
+            <GlassIconButton
               emoji="📅"
               label="Stundenplan & Kalender"
-              isOpen={openSection === 'schedule'}
+              isActive={openSection === 'schedule'}
               onClick={() => toggleSection('schedule')}
-            >
-              Stundenplan
-            </GlassButton>
+            />
         </div>
 
         {/* Content Area */}

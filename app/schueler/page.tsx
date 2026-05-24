@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function TeacherLogin() {
+export default function StudentLogin() {
   const router = useRouter();
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,10 +17,10 @@ export default function TeacherLogin() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/teacher/login', {
+      const res = await fetch('/api/auth/student/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ name, pin, mode: 'login' }),
       });
 
       if (!res.ok) {
@@ -28,7 +29,8 @@ export default function TeacherLogin() {
         return;
       }
 
-      router.push('/lehrer/dashboard');
+      const data = await res.json();
+      router.push(`/student/${data.studentId}`);
     } catch {
       setError('Netzwerkfehler');
     } finally {
@@ -67,19 +69,29 @@ export default function TeacherLogin() {
         </Link>
 
         <div className="text-center mb-10">
-          <span className="text-5xl block mb-3">🏫</span>
+          <span className="text-5xl block mb-3">🎓</span>
           <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-            Lehrer-Login
+            Schüler-Login
           </h1>
-          <p className="text-gray-300 mt-2 text-sm">Melden Sie sich mit Ihrer PIN an</p>
+          <p className="text-gray-300 mt-2 text-sm">Melde dich mit deinem Namen und deiner PIN an</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Dein Name"
+            autoComplete="username"
+            className="w-full px-5 py-4 bg-white/5 border border-white/20 hover:border-white/30 focus:border-white/60 backdrop-blur-md text-white placeholder-gray-400 rounded-full focus:outline-none transition-all"
+            required
+          />
+
+          <input
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="PIN eingeben"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            placeholder="Deine PIN"
             autoComplete="current-password"
             className="w-full px-5 py-4 bg-white/5 border border-white/20 hover:border-white/30 focus:border-white/60 backdrop-blur-md text-white placeholder-gray-400 rounded-full focus:outline-none transition-all"
             required
