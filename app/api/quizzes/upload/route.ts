@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { createQuiz } from '@/lib/db';
-import { parseQuizTxt } from '@/lib/quiz-parser';
+import { parseQuizHtml } from '@/lib/quiz-html-parser';
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,11 +23,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File and title required' }, { status: 400 });
     }
 
-    // Read text file
+    // Read HTML file
     const text = await file.text();
 
-    // Parse TXT format
-    const parsed = parseQuizTxt(text);
+    // Parse HTML format (extrahiert eingebettetes <script id="quiz-data"> JSON)
+    const parsed = parseQuizHtml(text);
 
     // Create quiz with parsed questions directly in DB
     const quiz = await createQuiz(

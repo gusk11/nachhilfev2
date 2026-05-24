@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import RichContent from '@/app/components/RichContent';
+
+interface QuizOption {
+  letter: string;
+  html: string;
+}
 
 interface Question {
   id: string;
+  type: 'multiple' | 'true-false';
   text: string;
-  type: 'multiple' | 'text' | 'true-false';
-  options?: string[];
+  options?: QuizOption[];
   correctAnswer?: string | boolean;
+  explanation?: string;
 }
 
 interface QuizData {
@@ -23,7 +30,7 @@ export default function QuizPage() {
   const quizId = params.quizId as string;
 
   const [quiz, setQuiz] = useState<QuizData | null>(null);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
@@ -49,28 +56,23 @@ export default function QuizPage() {
     }
   };
 
-  const handleAnswerChange = (questionId: string, value: any) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: value,
-    }));
+  const handleAnswerChange = (questionId: string, value: string | boolean) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
   const calculateScore = () => {
+    if (!quiz) return 0;
     let correct = 0;
-    quiz?.questions.forEach((q) => {
-      if (answers[q.id] === q.correctAnswer) {
-        correct++;
-      }
+    quiz.questions.forEach((q) => {
+      if (answers[q.id] === q.correctAnswer) correct++;
     });
-    return Math.round((correct / quiz!.questions.length) * 100);
+    return Math.round((correct / quiz.questions.length) * 100);
   };
 
   const handleSubmit = async () => {
     const finalScore = calculateScore();
     setScore(finalScore);
     setSubmitted(true);
-
     try {
       await fetch('/api/results', {
         method: 'POST',
@@ -125,21 +127,29 @@ export default function QuizPage() {
             </div>
           </div>
 
-          <h2 className="text-xl font-semibold mb-6 text-gray-800">{q.text}</h2>
+          <div className="mb-6 text-xl font-semibold text-gray-800">
+            <RichContent html={q.text} />
+          </div>
 
-          {q.type === 'multiple' && (
+          {q.type === 'multiple' && q.options && (
             <div className="space-y-3 mb-6">
-              {q.options?.map((option) => (
-                <label key={option} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-[#eef3fb]">
+              {q.options.map((opt) => (
+                <label
+                  key={opt.letter}
+                  className="flex items-start p-3 border rounded-lg cursor-pointer hover:bg-[#eef3fb]"
+                >
                   <input
                     type="radio"
                     name="answer"
-                    value={option}
-                    checked={answers[q.id] === option}
+                    value={opt.letter}
+                    checked={answers[q.id] === opt.letter}
                     onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                    className="mr-3"
+                    className="mr-3 mt-1"
                   />
-                  <span className="text-gray-900">{option}</span>
+                  <span className="text-gray-900 flex-1">
+                    <span className="font-semibold mr-2">{opt.letter})</span>
+                    <RichContent html={opt.html} className="inline-block align-middle" />
+                  </span>
                 </label>
               ))}
             </div>
@@ -161,16 +171,6 @@ export default function QuizPage() {
                 </label>
               ))}
             </div>
-          )}
-
-          {q.type === 'text' && (
-            <input
-              type="text"
-              value={answers[q.id] || ''}
-              onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-              placeholder="Deine Antwort"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65] mb-6"
-            />
           )}
 
           <div className="flex gap-3">

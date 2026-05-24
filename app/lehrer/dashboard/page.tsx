@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { modalVariants, modalContentVariants, accordionContentVariants, rotateArrowVariants } from '@/app/lib/motionVariants';
 import { GlassButton } from '@/app/components/GlassEffect';
+import RichContent from '@/app/components/RichContent';
 
 interface Student {
   id: number;
@@ -35,7 +36,7 @@ interface DetailQuestion {
   id: string;
   text: string;
   type: 'multiple' | 'true-false' | 'text';
-  options?: string[];
+  options?: Array<string | { letter: string; html: string }>;
   correctAnswer?: string | boolean;
 }
 
@@ -795,17 +796,18 @@ export default function TeacherDashboard() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    TXT-Datei auswählen
+                    HTML-Datei auswählen
                   </label>
                   <input
                     type="file"
-                    accept=".txt"
+                    accept=".html,.htm"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     required
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Format: Quiz-Titel, --- Frage 1 ---, Frage-Text, A) Option, ..., ANTWORT: A
+                    HTML-Datei mit eingebettetem &lt;script id="quiz-data" type="application/json"&gt; Block.
+                    Unterstützt LaTeX (\( … \) und $$ … $$) für schöne Mathe-Formeln.
                   </p>
                 </div>
 
@@ -1865,9 +1867,10 @@ export default function TeacherDashboard() {
                             key={q.id}
                             className={`p-4 rounded-lg border-l-4 ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-400 bg-red-50'}`}
                           >
-                            <p className="font-medium text-gray-800 mb-2">
-                              {i + 1}. {q.text}
-                            </p>
+                            <div className="font-medium text-gray-800 mb-2 flex gap-2">
+                              <span>{i + 1}.</span>
+                              <RichContent html={q.text} className="flex-1" />
+                            </div>
                             <p className={`text-sm ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
                               Antwort: {formatAnswer(studentAnswer, q.type)}
                               {isCorrect ? ' ✓' : ''}
