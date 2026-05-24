@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { accordionContentVariants, rotateArrowVariants } from '@/app/lib/motionVariants';
 import { GlassIconButton } from '@/app/components/GlassEffect';
+import RichContent from '@/app/components/RichContent';
 
 interface Quiz {
   id: number;
@@ -790,9 +791,6 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-                  <span className="text-4xl font-bold text-green-600">
-                    {Number(detailResult.score).toFixed(1)}%
-                  </span>
                   <span className="text-gray-500 text-sm">
                     {new Date(detailResult.completed_at).toLocaleDateString('de-DE')}
                   </span>
@@ -820,9 +818,10 @@ export default function StudentDashboard() {
                           key={q.id}
                           className={`p-4 rounded-lg border-l-4 ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-400 bg-red-50'}`}
                         >
-                          <p className="font-medium text-gray-800 mb-2">
-                            {i + 1}. {q.text}
-                          </p>
+                          <div className="font-medium text-gray-800 mb-2 flex gap-2">
+                            <span>{i + 1}.</span>
+                            <RichContent html={q.text} className="flex-1" />
+                          </div>
                           <p className={`text-sm ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
                             Deine Antwort: {formatAnswer(studentAnswer, q.type)}
                             {isCorrect ? ' ✓' : ''}

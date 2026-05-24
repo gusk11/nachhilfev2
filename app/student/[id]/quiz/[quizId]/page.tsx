@@ -63,15 +63,10 @@ export default function QuizPage() {
   const calculateScore = () => {
     if (!quiz) return 0;
     let correct = 0;
-    let answered = 0;
     quiz.questions.forEach((q) => {
-      if (answers[q.id] !== undefined) {
-        answered++;
-        if (answers[q.id] === q.correctAnswer) correct++;
-      }
+      if (answers[q.id] !== undefined && answers[q.id] === q.correctAnswer) correct++;
     });
-    // Nur beantwortete Fragen zählen; wenn keine beantwortet, 0%
-    return answered === 0 ? 0 : Math.round((correct / answered) * 100);
+    return Math.round((correct / quiz.questions.length) * 100);
   };
 
   const handleSubmit = async () => {

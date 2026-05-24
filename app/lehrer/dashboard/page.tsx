@@ -2266,9 +2266,6 @@ export default function TeacherDashboard() {
                   </div>
 
                   <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-                    <span className="text-4xl font-bold text-green-600">
-                      {Number(detailResult.score).toFixed(1)}%
-                    </span>
                     <span className="text-gray-500 text-sm">
                       {new Date(detailResult.completed_at).toLocaleDateString('de-DE')}
                     </span>
