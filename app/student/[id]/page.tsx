@@ -300,14 +300,6 @@ export default function StudentDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setAnkiOpen(true)}
-              className="bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/30 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2"
-              title="Anki-Zugang"
-            >
-              <span className="text-xl">🃏</span>
-              <span className="hidden sm:inline">Anki</span>
-            </button>
-            <button
               onClick={handleLogout}
               className="bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 font-medium"
             >
@@ -360,36 +352,32 @@ export default function StudentDashboard() {
             <div className="mt-4 pt-4 border-t border-white/30">
               <p className="text-sm font-semibold text-white/80 mb-3">✓ Vorbereitung für diese Stunde:</p>
               <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={completedTasks.anki || false}
-                    onChange={() => handleTaskToggle('anki')}
-                    disabled={savingTasks}
-                    className="w-4 h-4 rounded accent-white"
-                  />
-                  <span className="text-sm text-white">Anki-Karten bearbeitet</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={completedTasks.worksheets || false}
-                    onChange={() => handleTaskToggle('worksheets')}
-                    disabled={savingTasks}
-                    className="w-4 h-4 rounded accent-white"
-                  />
-                  <span className="text-sm text-white">Arbeitsblätter & Tests bearbeitet</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={completedTasks.prepare || false}
-                    onChange={() => handleTaskToggle('prepare')}
-                    disabled={savingTasks}
-                    className="w-4 h-4 rounded accent-white"
-                  />
-                  <span className="text-sm text-white">Materialien vorbereitet</span>
-                </label>
+                {[
+                  { key: 'anki', label: 'Anki-Karten bearbeitet' },
+                  { key: 'worksheets', label: 'Arbeitsblätter & Tests bearbeitet' },
+                  { key: 'prepare', label: 'Materialien vorbereitet' },
+                ].map((t) => {
+                  const done = !!completedTasks[t.key];
+                  return (
+                    <label
+                      key={t.key}
+                      className={`flex items-center gap-3 cursor-pointer rounded-lg px-3 py-2 transition ${
+                        done
+                          ? 'bg-green-500/70 border border-green-300'
+                          : 'bg-white/10 hover:bg-white/20 border border-transparent'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={done}
+                        onChange={() => handleTaskToggle(t.key)}
+                        disabled={savingTasks}
+                        className="w-4 h-4 rounded accent-white"
+                      />
+                      <span className="text-sm text-white">{t.label}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -454,6 +442,12 @@ export default function StudentDashboard() {
               label="Dateien hochladen"
               isActive={openSection === 'uploadDocuments'}
               onClick={() => toggleSection('uploadDocuments')}
+            />
+            <GlassIconButton
+              emoji="🃏"
+              label="Anki-Zugang"
+              isActive={ankiOpen}
+              onClick={() => setAnkiOpen(true)}
             />
         </div>
 
