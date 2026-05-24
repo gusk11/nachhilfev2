@@ -23,12 +23,15 @@ interface Result {
 }
 
 interface NextLesson {
+  id?: number;
   date: string;
   start_time: string;
   duration_minutes: number;
   standard_time: string;
+  theme?: string | null;
   notes: string | null;
   is_changed: boolean;
+  completed_tasks?: Record<string, boolean> | null;
 }
 
 interface StudentFile {
@@ -77,6 +80,12 @@ export default function StudentDashboard() {
   const [detailLoading, setDetailLoading] = useState(false);
 
   const [nextLesson, setNextLesson] = useState<NextLesson | null>(null);
+  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({
+    anki: false,
+    worksheets: false,
+    prepare: false,
+  });
+  const [savingTasks, setSavingTasks] = useState(false);
 
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadName, setUploadName] = useState('');
@@ -118,7 +127,12 @@ export default function StudentDashboard() {
       if (filesRes.ok) setFiles(await filesRes.json());
       if (nextLessonRes.ok) {
         const nlData = await nextLessonRes.json();
-        if (nlData.next_lesson) setNextLesson(nlData.next_lesson);
+        if (nlData.next_lesson) {
+          setNextLesson(nlData.next_lesson);
+          if (nlData.next_lesson.completed_tasks) {
+            setCompletedTasks(nlData.next_lesson.completed_tasks);
+          }
+        }
       }
     } catch (err) {
       console.error('Fetch error:', err);
@@ -152,6 +166,29 @@ export default function StudentDashboard() {
     } catch {
       // revert on error
       fetchData();
+    }
+  };
+
+  const handleTaskToggle = async (taskKey: string) => {
+    const newTasks = { ...completedTasks, [taskKey]: !completedTasks[taskKey] };
+    setCompletedTasks(newTasks);
+
+    if (!nextLesson || !nextLesson.id) return;
+
+    setSavingTasks(true);
+    try {
+      const res = await fetch(`/api/lesson-sessions/${nextLesson.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed_tasks: newTasks }),
+      });
+      if (!res.ok) {
+        setCompletedTasks(completedTasks);
+      }
+    } catch {
+      setCompletedTasks(completedTasks);
+    } finally {
+      setSavingTasks(false);
     }
   };
 
@@ -231,12 +268,53 @@ export default function StudentDashboard() {
                 <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full font-semibold self-start">⚠ Geänderter Termin</span>
               )}
             </div>
+            {nextLesson.theme && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-sm font-semibold text-gray-600 mb-1">🎓 Thema:</p>
+                <p className="text-sm text-gray-800">{nextLesson.theme}</p>
+              </div>
+            )}
             {nextLesson.notes && (
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <p className="text-sm font-semibold text-gray-600 mb-1">📝 Bis dahin erledigen:</p>
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">{nextLesson.notes}</p>
               </div>
             )}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm font-semibold text-gray-600 mb-3">✓ Vorbereitung für diese Stunde:</p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={completedTasks.anki || false}
+                    onChange={() => handleTaskToggle('anki')}
+                    disabled={savingTasks}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Anki-Karten bearbeitet</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={completedTasks.worksheets || false}
+                    onChange={() => handleTaskToggle('worksheets')}
+                    disabled={savingTasks}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Arbeitsblätter & Tests bearbeitet</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={completedTasks.prepare || false}
+                    onChange={() => handleTaskToggle('prepare')}
+                    disabled={savingTasks}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm text-gray-700">Materialien vorbereitet</span>
+                </label>
+              </div>
+            </div>
           </div>
         )}
 

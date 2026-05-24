@@ -60,6 +60,7 @@ export default function TeacherDashboard() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
   const [results, setResults] = useState<Result[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [quizTitle, setQuizTitle] = useState('');
@@ -155,11 +156,12 @@ export default function TeacherDashboard() {
 
   const fetchData = async () => {
     try {
-      const [studentsRes, resultsRes, schedulesRes, sessionsRes] = await Promise.all([
+      const [studentsRes, resultsRes, schedulesRes, sessionsRes, quizzesRes] = await Promise.all([
         fetch('/api/students', { credentials: 'include' }),
         fetch('/api/results/all', { credentials: 'include' }),
         fetch('/api/lesson-schedules', { credentials: 'include' }),
         fetch('/api/lesson-sessions', { credentials: 'include' }),
+        fetch('/api/quizzes?all=1', { credentials: 'include' }),
       ]);
 
       if (studentsRes.status === 401) {
@@ -175,6 +177,7 @@ export default function TeacherDashboard() {
         console.log('📥 Sessions geladen:', sessionData);
         setSessions(sessionData);
       }
+      if (quizzesRes.ok) setQuizzes(await quizzesRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -703,6 +706,22 @@ export default function TeacherDashboard() {
     }
   };
 
+  const handleDeleteQuiz = async (quizId: number, quizTitle: string) => {
+    if (!confirm(`Quiz "${quizTitle}" wirklich löschen?`)) return;
+    try {
+      const res = await fetch(`/api/quizzes/${quizId}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        alert('Quiz gelöscht!');
+        fetchData();
+      } else {
+        alert('Fehler beim Löschen');
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Netzwerkfehler');
+    }
+  };
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/lehrer');
@@ -734,6 +753,12 @@ export default function TeacherDashboard() {
               label="Quiz hochladen"
               isActive={openSection === 'upload'}
               onClick={() => toggleSection('upload')}
+            />
+            <GlassIconButton
+              emoji="📝"
+              label="Quizzes verwalten"
+              isActive={openSection === 'manage-quizzes'}
+              onClick={() => toggleSection('manage-quizzes')}
             />
             <GlassIconButton
               emoji="📊"
@@ -826,6 +851,43 @@ export default function TeacherDashboard() {
                   {uploading ? 'Wird hochgeladen...' : 'Quiz hochladen'}
                 </button>
               </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {openSection === 'manage-quizzes' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: "hidden" }}
+                className="bg-white rounded-lg shadow-lg p-6"
+              >
+              <h2 className="text-2xl font-bold mb-6 text-[#032e65]">📝 Quizzes verwalten</h2>
+              {quizzes.length === 0 ? (
+                <p className="text-center py-8 text-gray-500">Noch keine Quizzes hochgeladen</p>
+              ) : (
+                <div className="space-y-2">
+                  {quizzes.map((q) => (
+                    <div key={q.id} className="flex items-center justify-between bg-[#f0f4f8] p-4 rounded-lg">
+                      <div>
+                        <p className="font-semibold text-gray-800">{q.title}</p>
+                        <p className="text-xs text-gray-500">
+                          {q.student_id ? 'Für Schüler' : 'Für alle Schüler'} • {new Date(q.uploaded_at).toLocaleDateString('de-DE')}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteQuiz(q.id, q.title)}
+                        className="ml-4 px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition"
+                      >
+                        Löschen
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               </motion.div>
             )}
           </AnimatePresence>

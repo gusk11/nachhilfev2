@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getQuiz } from '@/lib/db';
+import { getQuiz, deleteQuiz } from '@/lib/db';
 
 export async function GET(
   req: NextRequest,
@@ -38,6 +38,21 @@ export async function GET(
     return NextResponse.json({ error: 'Quiz-Daten nicht verfügbar' }, { status: 502 });
   } catch (error) {
     console.error('Get quiz error:', error);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ quizId: string }> }
+) {
+  try {
+    const { quizId: quizIdStr } = await params;
+    const quizId = parseInt(quizIdStr);
+    await deleteQuiz(quizId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Delete quiz error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

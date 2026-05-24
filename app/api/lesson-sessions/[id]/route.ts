@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { deleteLessonSession, updateLessonSession, upsertLessonSession } from '@/lib/db';
+import { deleteLessonSession, updateLessonSession, upsertLessonSession, getLessonSessionById } from '@/lib/db';
 
 async function requireTeacher() {
   const cookieStore = await cookies();
@@ -18,7 +18,7 @@ export async function PUT(
   try {
     if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const { id } = await params;
-    const { lesson_date, start_time, duration_minutes, notes, theme } = await req.json();
+    const { lesson_date, start_time, duration_minutes, notes, theme, completed_tasks } = await req.json();
     if (!lesson_date) {
       return NextResponse.json({ error: 'lesson_date erforderlich' }, { status: 400 });
     }
@@ -28,7 +28,37 @@ export async function PUT(
       start_time || null,
       duration_minutes ? parseInt(duration_minutes) : null,
       notes || null,
-      theme || null
+      theme || null,
+      completed_tasks || null
+    );
+    return NextResponse.json(record);
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const { completed_tasks } = await req.json();
+    if (!completed_tasks) {
+      return NextResponse.json({ error: 'completed_tasks erforderlich' }, { status: 400 });
+    }
+    const session = await getLessonSessionById(parseInt(id));
+    if (!session) {
+      return NextResponse.json({ error: 'Session nicht gefunden' }, { status: 404 });
+    }
+    const record = await updateLessonSession(
+      parseInt(id),
+      session.lesson_date,
+      session.start_time,
+      session.duration_minutes,
+      session.notes,
+      session.theme,
+      completed_tasks
     );
     return NextResponse.json(record);
   } catch (e) {

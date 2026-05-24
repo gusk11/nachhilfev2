@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getQuiz } from '@/lib/db';
+import { getQuiz, getAllQuizzes } from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const quizId = searchParams.get('id');
+    const listAll = searchParams.get('all');
+
+    if (listAll) {
+      const quizzes = await getAllQuizzes();
+      return NextResponse.json(quizzes);
+    }
 
     if (!quizId) {
       return NextResponse.json({ error: 'Quiz ID required' }, { status: 400 });

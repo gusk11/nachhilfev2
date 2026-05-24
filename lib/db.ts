@@ -99,6 +99,8 @@ export async function initializeDB() {
         start_time VARCHAR(5),
         duration_minutes INTEGER,
         notes TEXT,
+        theme VARCHAR(255),
+        completed_tasks JSONB DEFAULT '{"anki": false, "worksheets": false, "prepare": false}',
         UNIQUE(student_id, lesson_date)
       )
     `;
@@ -118,6 +120,15 @@ export async function initializeDB() {
         console.log('✓ Added cancelled column to lesson_sessions');
       } catch (e) {
         console.error('✗ Failed to add cancelled column:', e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    if (!(await columnExists('lesson_sessions', 'completed_tasks'))) {
+      try {
+        await sql`ALTER TABLE lesson_sessions ADD COLUMN completed_tasks JSONB DEFAULT '{"anki": false, "worksheets": false, "prepare": false}'`;
+        console.log('✓ Added completed_tasks column to lesson_sessions');
+      } catch (e) {
+        console.error('✗ Failed to add completed_tasks column:', e instanceof Error ? e.message : String(e));
       }
     }
 
@@ -200,6 +211,15 @@ export async function createQuiz(
     RETURNING *
   `;
   return rows[0];
+}
+
+export async function deleteQuiz(quizId: number) {
+  await sql`DELETE FROM quizzes WHERE id = ${quizId}`;
+}
+
+export async function getAllQuizzes() {
+  const rows = await sql`SELECT * FROM quizzes ORDER BY uploaded_at DESC`;
+  return rows;
 }
 
 export async function saveResult(
@@ -355,14 +375,16 @@ export async function deleteLessonSchedule(studentId: number) {
 export async function upsertLessonSession(
   studentId: number, lessonDate: string,
   startTime: string | null, durationMinutes: number | null, notes: string | null,
-  theme: string | null = null
+  theme: string | null = null, completedTasks: Record<string, boolean> | null = null
 ) {
   await ensureSchema();
+  const tasksJson = completedTasks ? JSON.stringify(completedTasks) : JSON.stringify({anki: false, worksheets: false, prepare: false});
   const rows = await sql`
-    INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes, theme)
-    VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes}, ${theme})
+    INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes, theme, completed_tasks)
+    VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes}, ${theme}, ${tasksJson})
     ON CONFLICT (student_id, lesson_date) DO UPDATE SET
-      start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}, theme = ${theme}
+      start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}, theme = ${theme},
+      completed_tasks = ${completedTasks ? tasksJson : sql`lesson_sessions.completed_tasks`}
     RETURNING *
   `;
   return rows[0];
@@ -389,23 +411,38 @@ export async function getLessonSessionsForStudent(studentId: number) {
   return rows;
 }
 
+export async function getLessonSessionById(id: number) {
+  const rows = await sql`SELECT * FROM lesson_sessions WHERE id = ${id}`;
+  return rows[0] || null;
+}
+
 export async function updateLessonSession(
   id: number,
   lessonDate: string,
   startTime: string | null,
   durationMinutes: number | null,
   notes: string | null,
-  theme: string | null = null
+  theme: string | null = null,
+  completedTasks: Record<string, boolean> | null = null
 ) {
   await ensureSchema();
   try {
     // Direkt updaten — wenn Konflikt wegen UNIQUE(student_id, lesson_date), dann DELETE + INSERT
-    const updated = await sql`
-      UPDATE lesson_sessions
-      SET lesson_date = ${lessonDate}, start_time = ${startTime}, duration_minutes = ${durationMinutes}, notes = ${notes}, theme = ${theme}
-      WHERE id = ${id}
-      RETURNING *
-    `;
+    const updated = completedTasks
+      ? await sql`
+          UPDATE lesson_sessions
+          SET lesson_date = ${lessonDate}, start_time = ${startTime}, duration_minutes = ${durationMinutes},
+              notes = ${notes}, theme = ${theme}, completed_tasks = ${JSON.stringify(completedTasks)}
+          WHERE id = ${id}
+          RETURNING *
+        `
+      : await sql`
+          UPDATE lesson_sessions
+          SET lesson_date = ${lessonDate}, start_time = ${startTime}, duration_minutes = ${durationMinutes},
+              notes = ${notes}, theme = ${theme}
+          WHERE id = ${id}
+          RETURNING *
+        `;
 
     if (updated.length > 0) {
       return updated[0];
@@ -419,11 +456,14 @@ export async function updateLessonSession(
       if (!session.length) throw new Error('Session nicht gefunden');
 
       const studentId = session[0].student_id;
+      const tasksJson = completedTasks
+        ? JSON.stringify(completedTasks)
+        : JSON.stringify(session[0].completed_tasks || {anki: false, worksheets: false, prepare: false});
       await sql`DELETE FROM lesson_sessions WHERE id = ${id}`;
 
       const rows = await sql`
-        INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes, theme)
-        VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes}, ${theme})
+        INSERT INTO lesson_sessions (student_id, lesson_date, start_time, duration_minutes, notes, theme, completed_tasks)
+        VALUES (${studentId}, ${lessonDate}, ${startTime}, ${durationMinutes}, ${notes}, ${theme}, ${tasksJson})
         RETURNING *
       `;
       return rows[0];
