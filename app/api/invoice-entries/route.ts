@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { getAllUpcomingLessonSessions, getAllLessonSessionsAll, upsertLessonSession } from '@/lib/db';
+import { getAllInvoiceEntries, upsertInvoiceEntry } from '@/lib/db';
 
 async function requireTeacher() {
   const cookieStore = await cookies();
@@ -11,32 +11,28 @@ async function requireTeacher() {
   return decoded;
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const all = req.nextUrl.searchParams.get('all') === '1';
-    const sessions = all ? await getAllLessonSessionsAll() : await getAllUpcomingLessonSessions();
-    return NextResponse.json(sessions);
+    const entries = await getAllInvoiceEntries();
+    return NextResponse.json(entries);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function PATCH(req: NextRequest) {
   try {
     if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const { student_id, lesson_date, start_time, duration_minutes, notes, theme } = await req.json();
+    const { student_id, lesson_date, invoice_created, invoice_sent, invoice_paid } = await req.json();
     if (!student_id || !lesson_date) {
       return NextResponse.json({ error: 'student_id und lesson_date erforderlich' }, { status: 400 });
     }
-    const record = await upsertLessonSession(
+    const entry = await upsertInvoiceEntry(
       student_id, lesson_date,
-      start_time || null,
-      duration_minutes ? parseInt(duration_minutes) : null,
-      notes || null,
-      theme || null
+      !!invoice_created, !!invoice_sent, !!invoice_paid
     );
-    return NextResponse.json(record);
+    return NextResponse.json(entry);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

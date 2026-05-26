@@ -173,6 +173,9 @@ export default function TeacherDashboard() {
   const [activityModal, setActivityModal] = useState<{ lessonKey: string; studentName: string } | null>(null);
   const [selectedActivities, setSelectedActivities] = useState<Set<string>>(new Set());
 
+  // Rechnungen
+  const [invoiceEntries, setInvoiceEntries] = useState<Map<string, { created: boolean; sent: boolean; paid: boolean }>>(new Map());
+
   const ACTIVITY_TYPES = [
     { id: 'homework', label: 'Rechnung', emoji: '📝' },
     { id: 'quiz', label: 'Quiz', emoji: '✏️' },
@@ -186,12 +189,13 @@ export default function TeacherDashboard() {
 
   const fetchData = async () => {
     try {
-      const [studentsRes, resultsRes, schedulesRes, sessionsRes, quizzesRes] = await Promise.all([
+      const [studentsRes, resultsRes, schedulesRes, sessionsRes, quizzesRes, invoiceRes] = await Promise.all([
         fetch('/api/students', { credentials: 'include' }),
         fetch('/api/results/all', { credentials: 'include' }),
         fetch('/api/lesson-schedules', { credentials: 'include' }),
-        fetch('/api/lesson-sessions', { credentials: 'include' }),
+        fetch('/api/lesson-sessions?all=1', { credentials: 'include' }),
         fetch('/api/quizzes?all=1', { credentials: 'include' }),
+        fetch('/api/invoice-entries', { credentials: 'include' }),
       ]);
 
       if (studentsRes.status === 401) {
@@ -204,10 +208,22 @@ export default function TeacherDashboard() {
       if (schedulesRes.ok) setSchedules(await schedulesRes.json());
       if (sessionsRes.ok) {
         const sessionData = await sessionsRes.json();
-        console.log('📥 Sessions geladen:', sessionData);
         setSessions(sessionData);
       }
       if (quizzesRes.ok) setQuizzes(await quizzesRes.json());
+      if (invoiceRes.ok) {
+        const entries: any[] = await invoiceRes.json();
+        const map = new Map<string, { created: boolean; sent: boolean; paid: boolean }>();
+        entries.forEach((e) => {
+          const dateStr = typeof e.lesson_date === 'string' ? e.lesson_date.slice(0, 10) : String(e.lesson_date).slice(0, 10);
+          map.set(`${e.student_id}-${dateStr}`, {
+            created: !!e.invoice_created,
+            sent: !!e.invoice_sent,
+            paid: !!e.invoice_paid,
+          });
+        });
+        setInvoiceEntries(map);
+      }
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -875,6 +891,32 @@ export default function TeacherDashboard() {
     router.push('/lehrer');
   };
 
+  const handleInvoiceToggle = async (
+    studentId: number, dateStr: string,
+    field: 'created' | 'sent' | 'paid'
+  ) => {
+    const key = `${studentId}-${dateStr}`;
+    const current = invoiceEntries.get(key) || { created: false, sent: false, paid: false };
+    const next = { ...current, [field]: !current[field] };
+    setInvoiceEntries((prev) => new Map(prev).set(key, next));
+    try {
+      await fetch('/api/invoice-entries', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          lesson_date: dateStr,
+          invoice_created: next.created,
+          invoice_sent: next.sent,
+          invoice_paid: next.paid,
+        }),
+      });
+    } catch {
+      setInvoiceEntries((prev) => new Map(prev).set(key, current));
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Lädt...</div>;
   }
@@ -941,6 +983,12 @@ export default function TeacherDashboard() {
               label="Stundenplan & Kalender"
               isActive={openSection === 'schedule'}
               onClick={() => toggleSection('schedule')}
+            />
+            <GlassIconButton
+              emoji="🧾"
+              label="Rechnungen"
+              isActive={openSection === 'invoices'}
+              onClick={() => toggleSection('invoices')}
             />
         </div>
 
@@ -1344,6 +1392,117 @@ export default function TeacherDashboard() {
                   );
                 })}
               </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {openSection === 'invoices' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: 'hidden', background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
+              >
+                <h2 className="text-2xl font-bold mb-2 text-white">🧾 Rechnungen</h2>
+                <p className="text-sm text-white/70 mb-6">Vergangene Stunden — Rechnungsstatus verfolgen</p>
+
+                {(() => {
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                  const now = new Date();
+                  const today = new Date(now); today.setHours(0, 0, 0, 0);
+
+                  const pastLessons: any[] = [];
+                  for (let i = 1; i <= 90; i++) {
+                    const d = new Date(today);
+                    d.setDate(today.getDate() - i);
+                    const dateStr = localDateStr(d);
+                    const lessons = getAllLessonsForDate(dateStr);
+                    lessons.forEach((lesson: any) => {
+                      const lessonEnd = new Date(dateStr + 'T' + (lesson.startTime || '00:00') + ':00');
+                      lessonEnd.setMinutes(lessonEnd.getMinutes() + (lesson.durationMinutes || 60));
+                      if (lessonEnd < now) {
+                        pastLessons.push({
+                          ...lesson,
+                          dateStr,
+                          dateLabel: d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }),
+                        });
+                      }
+                    });
+                  }
+
+                  if (pastLessons.length === 0) {
+                    return (
+                      <p className="text-center text-white/70 py-8">Keine vergangenen Stunden gefunden</p>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      {pastLessons.map((lesson: any, idx: number) => {
+                        const key = `${lesson.studentId}-${lesson.dateStr}`;
+                        const inv = invoiceEntries.get(key) || { created: false, sent: false, paid: false };
+                        const allDone = inv.created && inv.sent && inv.paid;
+
+                        return (
+                          <div
+                            key={idx}
+                            className={`rounded-xl p-4 border-2 transition-colors ${
+                              allDone
+                                ? 'bg-green-500/25 border-green-400/60'
+                                : 'bg-red-500/20 border-red-400/50'
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                              {/* Info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-white">{lesson.studentName}</p>
+                                <p className="text-sm text-white/80">
+                                  {lesson.dateLabel} · {lesson.startTime} · {lesson.durationMinutes} Min.
+                                </p>
+                                {lesson.theme && (
+                                  <p className="text-xs text-white/60 mt-0.5">📚 {lesson.theme}</p>
+                                )}
+                              </div>
+
+                              {/* Checkboxen */}
+                              <div className="flex gap-2 flex-wrap">
+                                {([
+                                  { field: 'created' as const, label: 'Erstellt' },
+                                  { field: 'sent' as const, label: 'Geschickt' },
+                                  { field: 'paid' as const, label: 'Bezahlt' },
+                                ]).map(({ field, label }) => {
+                                  const checked = inv[field];
+                                  return (
+                                    <button
+                                      key={field}
+                                      onClick={() => handleInvoiceToggle(lesson.studentId, lesson.dateStr, field)}
+                                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
+                                        checked
+                                          ? 'bg-green-500 border-green-400 text-white'
+                                          : 'bg-white/15 border-white/30 text-white/80 hover:bg-white/25'
+                                      }`}
+                                    >
+                                      <span className={`w-4 h-4 rounded border flex items-center justify-center text-xs flex-shrink-0 ${
+                                        checked ? 'bg-white border-white text-green-700' : 'border-white/50'
+                                      }`}>
+                                        {checked ? '✓' : ''}
+                                      </span>
+                                      {label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </motion.div>
             )}
           </AnimatePresence>

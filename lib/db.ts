@@ -182,6 +182,19 @@ export async function initializeDB() {
       }
     }
 
+    // ── Rechnungen ────────────────────────────────────────────────────────────
+    await sql`
+      CREATE TABLE IF NOT EXISTS invoice_entries (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        lesson_date DATE NOT NULL,
+        invoice_created BOOLEAN DEFAULT FALSE,
+        invoice_sent BOOLEAN DEFAULT FALSE,
+        invoice_paid BOOLEAN DEFAULT FALSE,
+        UNIQUE(student_id, lesson_date)
+      )
+    `;
+
     console.log('Database tables initialized');
   } catch (error) {
     console.error('Database initialization error:', error);
@@ -575,4 +588,40 @@ export async function updateStudentAnki(
     SET anki_username = ${username}, anki_password = ${password}
     WHERE id = ${studentId}
   `;
+}
+
+// ── All Lesson Sessions (past + future) ──────────────────────────────────────
+export async function getAllLessonSessionsAll() {
+  await ensureSchema();
+  const rows = await sql`
+    SELECT ls.*, s.name AS student_name
+    FROM lesson_sessions ls JOIN students s ON ls.student_id = s.id
+    ORDER BY ls.lesson_date DESC
+  `;
+  return rows;
+}
+
+// ── Invoice Entries ───────────────────────────────────────────────────────────
+export async function getAllInvoiceEntries() {
+  await ensureSchema();
+  const rows = await sql`SELECT * FROM invoice_entries`;
+  return rows;
+}
+
+export async function upsertInvoiceEntry(
+  studentId: number,
+  lessonDate: string,
+  created: boolean,
+  sent: boolean,
+  paid: boolean
+) {
+  await ensureSchema();
+  const rows = await sql`
+    INSERT INTO invoice_entries (student_id, lesson_date, invoice_created, invoice_sent, invoice_paid)
+    VALUES (${studentId}, ${lessonDate}, ${created}, ${sent}, ${paid})
+    ON CONFLICT (student_id, lesson_date) DO UPDATE SET
+      invoice_created = ${created}, invoice_sent = ${sent}, invoice_paid = ${paid}
+    RETURNING *
+  `;
+  return rows[0];
 }
