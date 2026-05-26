@@ -200,6 +200,11 @@ export async function initializeDB() {
         await sql`ALTER TABLE invoice_entries ADD COLUMN dismissed BOOLEAN DEFAULT FALSE`;
       } catch {}
     }
+    if (!(await columnExists('invoice_entries', 'invoice_number'))) {
+      try {
+        await sql`ALTER TABLE invoice_entries ADD COLUMN invoice_number VARCHAR(50)`;
+      } catch {}
+    }
 
     console.log('Database tables initialized');
   } catch (error) {
@@ -619,17 +624,28 @@ export async function upsertInvoiceEntry(
   lessonDate: string,
   created: boolean,
   sent: boolean,
-  paid: boolean
+  paid: boolean,
+  invoiceNumber?: string | null
 ) {
   await ensureSchema();
   const rows = await sql`
-    INSERT INTO invoice_entries (student_id, lesson_date, invoice_created, invoice_sent, invoice_paid)
-    VALUES (${studentId}, ${lessonDate}, ${created}, ${sent}, ${paid})
+    INSERT INTO invoice_entries (student_id, lesson_date, invoice_created, invoice_sent, invoice_paid, invoice_number)
+    VALUES (${studentId}, ${lessonDate}, ${created}, ${sent}, ${paid}, ${invoiceNumber ?? null})
     ON CONFLICT (student_id, lesson_date) DO UPDATE SET
-      invoice_created = ${created}, invoice_sent = ${sent}, invoice_paid = ${paid}
+      invoice_created = ${created}, invoice_sent = ${sent}, invoice_paid = ${paid},
+      invoice_number = COALESCE(${invoiceNumber ?? null}, invoice_entries.invoice_number)
     RETURNING *
   `;
   return rows[0];
+}
+
+export async function updateInvoiceNumber(studentId: number, lessonDate: string, invoiceNumber: string | null) {
+  await ensureSchema();
+  await sql`
+    INSERT INTO invoice_entries (student_id, lesson_date, invoice_number)
+    VALUES (${studentId}, ${lessonDate}, ${invoiceNumber})
+    ON CONFLICT (student_id, lesson_date) DO UPDATE SET invoice_number = ${invoiceNumber}
+  `;
 }
 
 export async function dismissInvoiceEntry(studentId: number, lessonDate: string) {

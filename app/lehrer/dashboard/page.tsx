@@ -174,7 +174,7 @@ export default function TeacherDashboard() {
   const [selectedActivities, setSelectedActivities] = useState<Set<string>>(new Set());
 
   // Rechnungen
-  const [invoiceEntries, setInvoiceEntries] = useState<Map<string, { created: boolean; sent: boolean; paid: boolean; dismissed: boolean }>>(new Map());
+  const [invoiceEntries, setInvoiceEntries] = useState<Map<string, { created: boolean; sent: boolean; paid: boolean; dismissed: boolean; invoiceNumber: string }>>(new Map());
 
   const ACTIVITY_TYPES = [
     { id: 'homework', label: 'Rechnung', emoji: '📝' },
@@ -221,6 +221,7 @@ export default function TeacherDashboard() {
             sent: !!e.invoice_sent,
             paid: !!e.invoice_paid,
             dismissed: !!e.dismissed,
+            invoiceNumber: e.invoice_number || '',
           });
         });
         setInvoiceEntries(map);
@@ -897,7 +898,7 @@ export default function TeacherDashboard() {
     field: 'created' | 'sent' | 'paid'
   ) => {
     const key = `${studentId}-${dateStr}`;
-    const current = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false };
+    const current = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false, invoiceNumber: '' };
     const next = { ...current, [field]: !current[field] };
     setInvoiceEntries((prev) => new Map(prev).set(key, next));
     try {
@@ -918,11 +919,27 @@ export default function TeacherDashboard() {
     }
   };
 
+  const handleInvoiceNumberSave = async (studentId: number, dateStr: string, value: string) => {
+    const key = `${studentId}-${dateStr}`;
+    setInvoiceEntries((prev) => {
+      const cur = prev.get(key) || { created: false, sent: false, paid: false, dismissed: false, invoiceNumber: '' };
+      return new Map(prev).set(key, { ...cur, invoiceNumber: value });
+    });
+    try {
+      await fetch('/api/invoice-entries', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, lesson_date: dateStr, invoice_number: value || null }),
+      });
+    } catch {}
+  };
+
   const handleInvoiceDelete = async (studentId: number, dateStr: string) => {
     const key = `${studentId}-${dateStr}`;
     const backup = invoiceEntries.get(key);
     // Optimistisch als dismissed markieren → Zeile verschwindet sofort
-    setInvoiceEntries((prev) => new Map(prev).set(key, { created: true, sent: true, paid: true, dismissed: true }));
+    setInvoiceEntries((prev) => new Map(prev).set(key, { created: true, sent: true, paid: true, dismissed: true, invoiceNumber: backup?.invoiceNumber || '' }));
     try {
       await fetch('/api/invoice-entries', {
         method: 'DELETE',
@@ -1464,7 +1481,7 @@ export default function TeacherDashboard() {
                     <div className="space-y-2">
                       {pastLessons.map((lesson: any, idx: number) => {
                         const key = `${lesson.studentId}-${lesson.dateStr}`;
-                        const inv = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false };
+                        const inv = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false, invoiceNumber: '' };
                         if (inv.dismissed) return null;
                         const allDone = inv.created && inv.sent && inv.paid;
 
@@ -1500,7 +1517,19 @@ export default function TeacherDashboard() {
                               </div>
 
                               {/* Checkboxen */}
-                              <div className="flex gap-2 flex-wrap">
+                              <div className="flex gap-2 flex-wrap items-center">
+                                {/* Rechnungsnummer */}
+                                <input
+                                  type="text"
+                                  value={inv.invoiceNumber}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setInvoiceEntries((prev) => new Map(prev).set(key, { ...inv, invoiceNumber: val }));
+                                  }}
+                                  onBlur={(e) => handleInvoiceNumberSave(lesson.studentId, lesson.dateStr, e.target.value)}
+                                  placeholder="Re.-Nr."
+                                  className="w-20 px-2 py-1.5 rounded-lg text-sm bg-white/20 border border-white/40 text-white placeholder-white/50 focus:outline-none focus:border-white/80"
+                                />
                                 {([
                                   { field: 'created' as const, label: 'Erstellt' },
                                   { field: 'sent' as const, label: 'Geschickt' },

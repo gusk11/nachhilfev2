@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { getAllInvoiceEntries, upsertInvoiceEntry, dismissInvoiceEntry, cleanupOldInvoiceEntries } from '@/lib/db';
+import { getAllInvoiceEntries, upsertInvoiceEntry, updateInvoiceNumber, dismissInvoiceEntry, cleanupOldInvoiceEntries } from '@/lib/db';
 
 async function requireTeacher() {
   const cookieStore = await cookies();
@@ -41,13 +41,18 @@ export async function DELETE(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const { student_id, lesson_date, invoice_created, invoice_sent, invoice_paid } = await req.json();
+    const body = await req.json();
+    const { student_id, lesson_date } = body;
     if (!student_id || !lesson_date) {
       return NextResponse.json({ error: 'student_id und lesson_date erforderlich' }, { status: 400 });
     }
+    if ('invoice_number' in body && Object.keys(body).length === 3) {
+      await updateInvoiceNumber(student_id, lesson_date, body.invoice_number ?? null);
+      return NextResponse.json({ ok: true });
+    }
     const entry = await upsertInvoiceEntry(
       student_id, lesson_date,
-      !!invoice_created, !!invoice_sent, !!invoice_paid
+      !!body.invoice_created, !!body.invoice_sent, !!body.invoice_paid
     );
     return NextResponse.json(entry);
   } catch (e) {
