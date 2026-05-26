@@ -213,7 +213,7 @@ export default function TeacherDashboard() {
       if (quizzesRes.ok) setQuizzes(await quizzesRes.json());
       if (invoiceRes.ok) {
         const entries: any[] = await invoiceRes.json();
-        const map = new Map<string, { created: boolean; sent: boolean; paid: boolean; dismissed: boolean }>();
+        const map = new Map<string, { created: boolean; sent: boolean; paid: boolean; dismissed: boolean; invoiceNumber: string }>();
         entries.forEach((e) => {
           const dateStr = typeof e.lesson_date === 'string' ? e.lesson_date.slice(0, 10) : String(e.lesson_date).slice(0, 10);
           map.set(`${e.student_id}-${dateStr}`, {
