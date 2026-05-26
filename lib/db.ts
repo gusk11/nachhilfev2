@@ -633,3 +633,8 @@ export async function deleteInvoiceEntry(studentId: number, lessonDate: string) 
     WHERE student_id = ${studentId} AND lesson_date = ${lessonDate}
   `;
 }
+
+export async function cleanupOldInvoiceEntries(beforeDate: string) {
+  await ensureSchema();
+  await sql`DELETE FROM invoice_entries WHERE lesson_date < ${beforeDate}`;
+}

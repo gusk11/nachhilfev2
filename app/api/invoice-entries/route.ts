@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { getAllInvoiceEntries, upsertInvoiceEntry, deleteInvoiceEntry } from '@/lib/db';
+import { getAllInvoiceEntries, upsertInvoiceEntry, deleteInvoiceEntry, cleanupOldInvoiceEntries } from '@/lib/db';
 
 async function requireTeacher() {
   const cookieStore = await cookies();
@@ -11,9 +11,12 @@ async function requireTeacher() {
   return decoded;
 }
 
+const INVOICE_START_DATE = '2026-05-24';
+
 export async function GET() {
   try {
     if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await cleanupOldInvoiceEntries(INVOICE_START_DATE);
     const entries = await getAllInvoiceEntries();
     return NextResponse.json(entries);
   } catch (e) {

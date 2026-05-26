@@ -1430,11 +1430,13 @@ export default function TeacherDashboard() {
                   const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
                   const now = new Date();
                   const today = new Date(now); today.setHours(0, 0, 0, 0);
+                  const cutoff = new Date('2026-05-24T00:00:00');
 
                   const pastLessons: any[] = [];
-                  for (let i = 1; i <= 90; i++) {
+                  for (let i = 1; i <= 365; i++) {
                     const d = new Date(today);
                     d.setDate(today.getDate() - i);
+                    if (d < cutoff) break;
                     const dateStr = localDateStr(d);
                     const lessons = getAllLessonsForDate(dateStr);
                     lessons.forEach((lesson: any) => {
