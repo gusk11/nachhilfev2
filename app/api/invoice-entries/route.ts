@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { getAllInvoiceEntries, upsertInvoiceEntry, deleteInvoiceEntry, cleanupOldInvoiceEntries } from '@/lib/db';
+import { getAllInvoiceEntries, upsertInvoiceEntry, dismissInvoiceEntry, cleanupOldInvoiceEntries } from '@/lib/db';
 
 async function requireTeacher() {
   const cookieStore = await cookies();
@@ -31,7 +31,7 @@ export async function DELETE(req: NextRequest) {
     if (!student_id || !lesson_date) {
       return NextResponse.json({ error: 'student_id und lesson_date erforderlich' }, { status: 400 });
     }
-    await deleteInvoiceEntry(student_id, lesson_date);
+    await dismissInvoiceEntry(student_id, lesson_date);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

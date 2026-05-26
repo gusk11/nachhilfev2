@@ -191,9 +191,15 @@ export async function initializeDB() {
         invoice_created BOOLEAN DEFAULT FALSE,
         invoice_sent BOOLEAN DEFAULT FALSE,
         invoice_paid BOOLEAN DEFAULT FALSE,
+        dismissed BOOLEAN DEFAULT FALSE,
         UNIQUE(student_id, lesson_date)
       )
     `;
+    if (!(await columnExists('invoice_entries', 'dismissed'))) {
+      try {
+        await sql`ALTER TABLE invoice_entries ADD COLUMN dismissed BOOLEAN DEFAULT FALSE`;
+      } catch {}
+    }
 
     console.log('Database tables initialized');
   } catch (error) {
@@ -626,11 +632,12 @@ export async function upsertInvoiceEntry(
   return rows[0];
 }
 
-export async function deleteInvoiceEntry(studentId: number, lessonDate: string) {
+export async function dismissInvoiceEntry(studentId: number, lessonDate: string) {
   await ensureSchema();
   await sql`
-    DELETE FROM invoice_entries
-    WHERE student_id = ${studentId} AND lesson_date = ${lessonDate}
+    INSERT INTO invoice_entries (student_id, lesson_date, invoice_created, invoice_sent, invoice_paid, dismissed)
+    VALUES (${studentId}, ${lessonDate}, true, true, true, true)
+    ON CONFLICT (student_id, lesson_date) DO UPDATE SET dismissed = true
   `;
 }
 

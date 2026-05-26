@@ -174,7 +174,7 @@ export default function TeacherDashboard() {
   const [selectedActivities, setSelectedActivities] = useState<Set<string>>(new Set());
 
   // Rechnungen
-  const [invoiceEntries, setInvoiceEntries] = useState<Map<string, { created: boolean; sent: boolean; paid: boolean }>>(new Map());
+  const [invoiceEntries, setInvoiceEntries] = useState<Map<string, { created: boolean; sent: boolean; paid: boolean; dismissed: boolean }>>(new Map());
 
   const ACTIVITY_TYPES = [
     { id: 'homework', label: 'Rechnung', emoji: '📝' },
@@ -213,13 +213,14 @@ export default function TeacherDashboard() {
       if (quizzesRes.ok) setQuizzes(await quizzesRes.json());
       if (invoiceRes.ok) {
         const entries: any[] = await invoiceRes.json();
-        const map = new Map<string, { created: boolean; sent: boolean; paid: boolean }>();
+        const map = new Map<string, { created: boolean; sent: boolean; paid: boolean; dismissed: boolean }>();
         entries.forEach((e) => {
           const dateStr = typeof e.lesson_date === 'string' ? e.lesson_date.slice(0, 10) : String(e.lesson_date).slice(0, 10);
           map.set(`${e.student_id}-${dateStr}`, {
             created: !!e.invoice_created,
             sent: !!e.invoice_sent,
             paid: !!e.invoice_paid,
+            dismissed: !!e.dismissed,
           });
         });
         setInvoiceEntries(map);
@@ -896,7 +897,7 @@ export default function TeacherDashboard() {
     field: 'created' | 'sent' | 'paid'
   ) => {
     const key = `${studentId}-${dateStr}`;
-    const current = invoiceEntries.get(key) || { created: false, sent: false, paid: false };
+    const current = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false };
     const next = { ...current, [field]: !current[field] };
     setInvoiceEntries((prev) => new Map(prev).set(key, next));
     try {
@@ -920,7 +921,8 @@ export default function TeacherDashboard() {
   const handleInvoiceDelete = async (studentId: number, dateStr: string) => {
     const key = `${studentId}-${dateStr}`;
     const backup = invoiceEntries.get(key);
-    setInvoiceEntries((prev) => { const m = new Map(prev); m.delete(key); return m; });
+    // Optimistisch als dismissed markieren → Zeile verschwindet sofort
+    setInvoiceEntries((prev) => new Map(prev).set(key, { created: true, sent: true, paid: true, dismissed: true }));
     try {
       await fetch('/api/invoice-entries', {
         method: 'DELETE',
@@ -1462,7 +1464,8 @@ export default function TeacherDashboard() {
                     <div className="space-y-2">
                       {pastLessons.map((lesson: any, idx: number) => {
                         const key = `${lesson.studentId}-${lesson.dateStr}`;
-                        const inv = invoiceEntries.get(key) || { created: false, sent: false, paid: false };
+                        const inv = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false };
+                        if (inv.dismissed) return null;
                         const allDone = inv.created && inv.sent && inv.paid;
 
                         return (
