@@ -625,3 +625,11 @@ export async function upsertInvoiceEntry(
   `;
   return rows[0];
 }
+
+export async function deleteInvoiceEntry(studentId: number, lessonDate: string) {
+  await ensureSchema();
+  await sql`
+    DELETE FROM invoice_entries
+    WHERE student_id = ${studentId} AND lesson_date = ${lessonDate}
+  `;
+}

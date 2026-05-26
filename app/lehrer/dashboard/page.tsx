@@ -917,6 +917,22 @@ export default function TeacherDashboard() {
     }
   };
 
+  const handleInvoiceDelete = async (studentId: number, dateStr: string) => {
+    const key = `${studentId}-${dateStr}`;
+    const backup = invoiceEntries.get(key);
+    setInvoiceEntries((prev) => { const m = new Map(prev); m.delete(key); return m; });
+    try {
+      await fetch('/api/invoice-entries', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, lesson_date: dateStr }),
+      });
+    } catch {
+      if (backup) setInvoiceEntries((prev) => new Map(prev).set(key, backup));
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Lädt...</div>;
   }
@@ -1457,6 +1473,16 @@ export default function TeacherDashboard() {
                             }`}
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                              {/* Löschen-Button — nur wenn alle 3 angehakt */}
+                              {allDone && (
+                                <button
+                                  onClick={() => handleInvoiceDelete(lesson.studentId, lesson.dateStr)}
+                                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-red-500/60 text-white transition"
+                                  title="Rechnung als erledigt abhaken und entfernen"
+                                >
+                                  🗑
+                                </button>
+                              )}
                               {/* Info */}
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-white">{lesson.studentName}</p>

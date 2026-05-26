@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { getAllInvoiceEntries, upsertInvoiceEntry } from '@/lib/db';
+import { getAllInvoiceEntries, upsertInvoiceEntry, deleteInvoiceEntry } from '@/lib/db';
 
 async function requireTeacher() {
   const cookieStore = await cookies();
@@ -16,6 +16,20 @@ export async function GET() {
     if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const entries = await getAllInvoiceEntries();
     return NextResponse.json(entries);
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    if (!await requireTeacher()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { student_id, lesson_date } = await req.json();
+    if (!student_id || !lesson_date) {
+      return NextResponse.json({ error: 'student_id und lesson_date erforderlich' }, { status: 400 });
+    }
+    await deleteInvoiceEntry(student_id, lesson_date);
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
