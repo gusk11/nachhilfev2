@@ -44,6 +44,7 @@ interface DetailQuestion {
   type: 'multiple' | 'true-false' | 'text';
   options?: Array<string | { letter: string; html: string }>;
   correctAnswer?: string | boolean;
+  explanation?: string;
 }
 
 interface DetailResult {
@@ -2527,9 +2528,16 @@ export default function TeacherDashboard() {
                               {isCorrect ? ' ✓' : ''}
                             </p>
                             {!isCorrect && (
-                              <p className="text-sm text-green-700 mt-1">
-                                Richtig: {formatAnswer(q.correctAnswer, q.type)}
-                              </p>
+                              <>
+                                <p className="text-sm text-green-700 mt-1">
+                                  Richtig: {formatAnswer(q.correctAnswer, q.type)}
+                                </p>
+                                {q.explanation && (
+                                  <div className="text-sm text-gray-500 mt-1.5 pl-1 border-l-2 border-gray-300">
+                                    <RichContent html={`💡 ${q.explanation}`} />
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         );

@@ -46,7 +46,8 @@ export async function GET(
     // New format: questions are stored directly in DB
     if (detail.questions) {
       const questions = typeof detail.questions === 'string' ? JSON.parse(detail.questions) : detail.questions;
-      return NextResponse.json({ ...base, questions, answers: detail.answers });
+      const answers = typeof detail.answers === 'string' ? JSON.parse(detail.answers) : detail.answers;
+      return NextResponse.json({ ...base, questions, answers });
     }
 
     return NextResponse.json({ ...base, questions: null, answers: null });
