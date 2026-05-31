@@ -1139,7 +1139,9 @@ export default function TeacherDashboard() {
                       <div>
                         <p className="font-semibold text-white">{q.title}</p>
                         <p className="text-xs text-white/70">
-                          {q.student_id ? 'Für Schüler' : 'Für alle Schüler'} • {new Date(q.uploaded_at).toLocaleDateString('de-DE')}
+                          {q.student_id
+                            ? `Für: ${students.find((s) => s.id === q.student_id)?.name ?? 'Kein Schüler zugeordnet'}`
+                            : 'Für alle Schüler'} • {new Date(q.uploaded_at).toLocaleDateString('de-DE')}
                         </p>
                       </div>
                       <button
@@ -1450,13 +1452,11 @@ export default function TeacherDashboard() {
                   const localDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
                   const now = new Date();
                   const today = new Date(now); today.setHours(0, 0, 0, 0);
-                  const cutoff = new Date('2026-05-24T00:00:00');
 
                   const pastLessons: any[] = [];
-                  for (let i = 1; i <= 365; i++) {
+                  for (let i = 1; i <= 7; i++) {
                     const d = new Date(today);
                     d.setDate(today.getDate() - i);
-                    if (d < cutoff) break;
                     const dateStr = localDateStr(d);
                     const lessons = getAllLessonsForDate(dateStr);
                     lessons.forEach((lesson: any) => {

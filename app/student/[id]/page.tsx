@@ -57,6 +57,16 @@ interface AnkiCreds {
   anki_password: string | null;
 }
 
+interface UpcomingLesson {
+  date: string;
+  start_time: string;
+  duration_minutes: number;
+  theme: string | null;
+  notes: string | null;
+  is_changed: boolean;
+  is_extra: boolean;
+}
+
 interface DetailQuestion {
   id: string;
   text: string;
@@ -111,6 +121,8 @@ export default function StudentDashboard() {
   // Todos
   const [todos, setTodos] = useState<Todo[]>([]);
 
+  const [upcomingLessons, setUpcomingLessons] = useState<UpcomingLesson[]>([]);
+
   // Anki-Modal
   const [ankiOpen, setAnkiOpen] = useState(false);
   const [ankiCreds, setAnkiCreds] = useState<AnkiCreds>({ anki_username: null, anki_password: null });
@@ -133,13 +145,14 @@ export default function StudentDashboard() {
 
   const fetchData = async () => {
     try {
-      const [quizzesRes, resultsRes, filesRes, nextLessonRes, todosRes, ankiRes] = await Promise.all([
+      const [quizzesRes, resultsRes, filesRes, nextLessonRes, todosRes, ankiRes, lessonsRes] = await Promise.all([
         fetch(`/api/quizzes/student/${studentId}`),
         fetch('/api/results'),
         fetch(`/api/students/${studentId}/files`),
         fetch(`/api/students/${studentId}/next-lesson`),
         fetch(`/api/students/${studentId}/todos`),
         fetch(`/api/students/${studentId}/anki`),
+        fetch(`/api/students/${studentId}/lessons`),
       ]);
 
       if (!quizzesRes.ok || !resultsRes.ok) {
@@ -162,6 +175,7 @@ export default function StudentDashboard() {
       }
       if (todosRes.ok) setTodos(await todosRes.json());
       if (ankiRes.ok) setAnkiCreds(await ankiRes.json());
+      if (lessonsRes.ok) setUpcomingLessons(await lessonsRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -425,6 +439,12 @@ export default function StudentDashboard() {
         {/* Icon-Tab-Leiste */}
         <div className="mb-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <GlassIconButton
+              emoji="📅"
+              label="Mein Stundenplan"
+              isActive={openSection === 'schedule'}
+              onClick={() => toggleSection('schedule')}
+            />
+            <GlassIconButton
               emoji="📝"
               label="Verfügbare Quizzes"
               isActive={openSection === 'quizzes'}
@@ -458,6 +478,67 @@ export default function StudentDashboard() {
 
         {/* Content Sections */}
         <div className="space-y-8">
+          <AnimatePresence>
+            {openSection === 'schedule' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: 'hidden', background: '#708DC7' }}
+                className="rounded-2xl shadow-2xl p-6"
+              >
+                <h2 className="text-2xl font-bold mb-6 text-white">📅 Mein Stundenplan</h2>
+                {upcomingLessons.length === 0 ? (
+                  <p className="text-center py-8 text-white/80">Keine bevorstehenden Termine</p>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingLessons.map((lesson) => (
+                      <div
+                        key={lesson.date}
+                        className={`rounded-xl p-4 border ${lesson.is_changed ? 'bg-red-500/20 border-red-400/50' : 'bg-white/15 border-white/25'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div>
+                            <p className="font-semibold text-white">
+                              {new Date(lesson.date + 'T12:00:00').toLocaleDateString('de-DE', {
+                                weekday: 'long',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                              })}
+                            </p>
+                            <p className="text-sm text-white/80 mt-0.5">
+                              {lesson.start_time} Uhr &middot; {lesson.duration_minutes} Min.
+                            </p>
+                            {lesson.theme && (
+                              <p className="text-xs text-white/70 mt-1">📚 {lesson.theme}</p>
+                            )}
+                            {lesson.notes && (
+                              <p className="text-xs text-white/60 mt-1 italic">📝 {lesson.notes}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1 items-end">
+                            {lesson.is_extra && (
+                              <span className="text-xs bg-purple-500/70 text-white px-2 py-0.5 rounded-full">
+                                Extrastunde
+                              </span>
+                            )}
+                            {lesson.is_changed && (
+                              <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">
+                                ⚠ Geändert
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence>
             {openSection === 'quizzes' && (
               <motion.div
