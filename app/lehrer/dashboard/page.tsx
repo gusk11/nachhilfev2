@@ -1599,15 +1599,14 @@ export default function TeacherDashboard() {
                   const today = new Date(now); today.setHours(0, 0, 0, 0);
 
                   const pastLessons: any[] = [];
-                  for (let i = 1; i <= 7; i++) {
+                  for (let i = 0; i <= 7; i++) {
                     const d = new Date(today);
                     d.setDate(today.getDate() - i);
                     const dateStr = localDateStr(d);
                     const lessons = getAllLessonsForDate(dateStr);
                     lessons.forEach((lesson: any) => {
-                      const lessonEnd = new Date(dateStr + 'T' + (lesson.startTime || '00:00') + ':00');
-                      lessonEnd.setMinutes(lessonEnd.getMinutes() + (lesson.durationMinutes || 60));
-                      if (lessonEnd < now) {
+                      const lessonStart = new Date(dateStr + 'T' + (lesson.startTime || '00:00') + ':00');
+                      if (lessonStart <= now) {
                         pastLessons.push({
                           ...lesson,
                           dateStr,
@@ -1625,7 +1624,7 @@ export default function TeacherDashboard() {
                     const lessons = getAllLessonsForDate(dateStr);
                     lessons.forEach((lesson: any) => {
                       const lessonStart = new Date(dateStr + 'T' + (lesson.startTime || '00:00') + ':00');
-                      if (lessonStart >= now) {
+                      if (lessonStart > now) {
                         futureLessons.push({
                           ...lesson,
                           dateStr,
@@ -1736,27 +1735,82 @@ export default function TeacherDashboard() {
                         <p className="text-center text-white/60 py-4 rounded-xl bg-white/5 border border-white/10">Keine geplanten Stunden in den nächsten 7 Tagen</p>
                       ) : (
                         <div className="space-y-2">
-                          {futureLessons.map((lesson: any, idx: number) => (
-                            <div
-                              key={idx}
-                              className="rounded-xl p-4 border-2 bg-white/8 border-white/25 opacity-80"
-                            >
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-white">{lesson.studentName}</p>
-                                  <p className="text-sm text-white/80">
-                                    {lesson.dateLabel} · {lesson.startTime} · {lesson.durationMinutes} Min.
-                                  </p>
-                                  {lesson.theme && (
-                                    <p className="text-xs text-white/60 mt-0.5">📚 {lesson.theme}</p>
+                          {futureLessons.map((lesson: any, idx: number) => {
+                            const key = `${lesson.studentId}-${lesson.dateStr}`;
+                            const inv = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false, invoiceNumber: '' };
+                            if (inv.dismissed) return null;
+                            const allDone = inv.created && inv.sent && inv.paid;
+                            return (
+                              <div
+                                key={idx}
+                                className={`rounded-xl p-4 border-2 transition-colors ${
+                                  allDone
+                                    ? 'bg-green-500/25 border-green-400/60'
+                                    : 'bg-blue-500/10 border-blue-400/40'
+                                }`}
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                  {allDone && (
+                                    <button
+                                      onClick={() => handleInvoiceDelete(lesson.studentId, lesson.dateStr)}
+                                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-red-500/60 text-white transition"
+                                      title="Rechnung als erledigt abhaken und entfernen"
+                                    >
+                                      🗑
+                                    </button>
                                   )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-white">{lesson.studentName}</p>
+                                    <p className="text-sm text-white/80">
+                                      {lesson.dateLabel} · {lesson.startTime} · {lesson.durationMinutes} Min.
+                                    </p>
+                                    {lesson.theme && (
+                                      <p className="text-xs text-white/60 mt-0.5">📚 {lesson.theme}</p>
+                                    )}
+                                    <span className="inline-block mt-1 text-xs text-white/60 bg-white/10 border border-white/20 px-2 py-0.5 rounded">🕐 Noch nicht stattgefunden</span>
+                                  </div>
+                                  <div className="flex gap-2 flex-wrap items-center">
+                                    <input
+                                      type="text"
+                                      value={inv.invoiceNumber}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setInvoiceEntries((prev) => new Map(prev).set(key, { ...inv, invoiceNumber: val }));
+                                      }}
+                                      onBlur={(e) => handleInvoiceNumberSave(lesson.studentId, lesson.dateStr, e.target.value)}
+                                      placeholder="Re.-Nr."
+                                      className="w-20 px-2 py-1.5 rounded-lg text-sm bg-white/20 border border-white/40 text-white placeholder-white/50 focus:outline-none focus:border-white/80"
+                                    />
+                                    {([
+                                      { field: 'created' as const, label: 'Erstellt' },
+                                      { field: 'sent' as const, label: 'Geschickt' },
+                                      { field: 'paid' as const, label: 'Bezahlt' },
+                                    ]).map(({ field, label }) => {
+                                      const checked = inv[field];
+                                      return (
+                                        <button
+                                          key={field}
+                                          onClick={() => handleInvoiceToggle(lesson.studentId, lesson.dateStr, field)}
+                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
+                                            checked
+                                              ? 'bg-green-500 border-green-400 text-white'
+                                              : 'bg-white/15 border-white/30 text-white/80 hover:bg-white/25'
+                                          }`}
+                                        >
+                                          <span className={`w-4 h-4 rounded border flex items-center justify-center text-xs flex-shrink-0 ${
+                                            checked ? 'bg-white border-white text-green-700' : 'border-white/50'
+                                          }`}>
+                                            {checked ? '✓' : ''}
+                                          </span>
+                                          {label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                                <span className="text-xs text-white/70 bg-white/10 border border-white/20 px-3 py-1.5 rounded-lg whitespace-nowrap">
-                                  🕐 Noch nicht stattgefunden
-                                </span>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
