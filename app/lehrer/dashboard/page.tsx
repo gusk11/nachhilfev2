@@ -85,6 +85,7 @@ export default function TeacherDashboard() {
 
   // Accordion sections (Single-Expand: nur eine gleichzeitig offen)
   const [openSection, setOpenSection] = useState<string | null>(null);
+  const [quizSubTab, setQuizSubTab] = useState<'manage' | 'results'>('manage');
 
   const toggleSection = (section: string) => {
     setOpenSection(openSection === section ? null : section);
@@ -155,6 +156,18 @@ export default function TeacherDashboard() {
   const [showAnkiPasswordEdit, setShowAnkiPasswordEdit] = useState(false);
   const [ankiSaving, setAnkiSaving] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
+
+  // Profil-Modal: Stammdaten (Name, PIN, Stunde)
+  const [profileNewName, setProfileNewName] = useState('');
+  const [profileNameSaving, setProfileNameSaving] = useState(false);
+  const [profileNewPin, setProfileNewPin] = useState('');
+  const [profilePinSaving, setProfilePinSaving] = useState(false);
+  const [profileSchedule, setProfileSchedule] = useState<any | null>(null);
+  const [profileSchedDay, setProfileSchedDay] = useState(1);
+  const [profileSchedTime, setProfileSchedTime] = useState('15:00');
+  const [profileSchedDuration, setProfileSchedDuration] = useState(60);
+  const [profileSchedSaving, setProfileSchedSaving] = useState(false);
+
   const [profileNextLesson, setProfileNextLesson] = useState<{
     date: string;
     start_time: string;
@@ -165,6 +178,12 @@ export default function TeacherDashboard() {
     is_changed: boolean;
     completed_tasks: Record<string, boolean> | null;
   } | null>(null);
+
+  // Profil-Modal: Vorbereitungs-Optionen
+  const [profilePrepOptions, setProfilePrepOptions] = useState<Array<{ id: number; label: string; sort_order: number }>>([]);
+  const [newPrepLabel, setNewPrepLabel] = useState('');
+  const [prepOptionSaving, setPrepOptionSaving] = useState(false);
+  const [editingPrepOption, setEditingPrepOption] = useState<{ id: number; label: string } | null>(null);
 
   // Anzahl offene Todos pro Schüler (für Anzeige in der Liste)
   const [todoCounts, setTodoCounts] = useState<Record<number, number>>({});
@@ -444,12 +463,24 @@ export default function TeacherDashboard() {
     setNewTodoText('');
     setShowAnkiPasswordEdit(false);
     setProfileNextLesson(null);
+    setProfileNewName(student.name);
+    setProfileNewPin('');
+    // Lade vorhandene Grundstunde aus dem lokalen State
+    const existingSched = schedules.find((x: any) => x.student_id === student.id);
+    setProfileSchedule(existingSched || null);
+    setProfileSchedDay(existingSched?.day_of_week ?? 1);
+    setProfileSchedTime(existingSched?.start_time ?? '15:00');
+    setProfileSchedDuration(existingSched?.duration_minutes ?? 60);
+    setNewPrepLabel('');
+    setEditingPrepOption(null);
+    setProfilePrepOptions([]);
     setProfileLoading(true);
     try {
-      const [todosRes, ankiRes, nlRes] = await Promise.all([
+      const [todosRes, ankiRes, nlRes, prepRes] = await Promise.all([
         fetch(`/api/students/${student.id}/todos`, { credentials: 'include' }),
         fetch(`/api/students/${student.id}/anki`, { credentials: 'include' }),
         fetch(`/api/students/${student.id}/next-lesson`, { credentials: 'include' }),
+        fetch(`/api/students/${student.id}/prep-options`, { credentials: 'include' }),
       ]);
       if (todosRes.ok) setStudentTodos(await todosRes.json());
       if (ankiRes.ok) {
@@ -461,6 +492,7 @@ export default function TeacherDashboard() {
         const nl = await nlRes.json();
         if (nl.next_lesson) setProfileNextLesson(nl.next_lesson);
       }
+      if (prepRes.ok) setProfilePrepOptions(await prepRes.json());
     } catch (err) {
       console.error('Profile fetch error:', err);
     } finally {
@@ -532,6 +564,147 @@ export default function TeacherDashboard() {
     } finally {
       setAnkiSaving(false);
     }
+  };
+
+  const handleProfileSaveName = async () => {
+    if (!profileModal || !profileNewName.trim()) return;
+    setProfileNameSaving(true);
+    try {
+      const res = await fetch(`/api/students/${profileModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: profileNewName.trim() }),
+      });
+      if (res.ok) {
+        setProfileModal({ id: profileModal.id, name: profileNewName.trim() });
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert('Fehler: ' + (data.error || 'Unbekannt'));
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setProfileNameSaving(false);
+    }
+  };
+
+  const handleProfileSavePin = async () => {
+    if (!profileModal || !profileNewPin.trim()) return;
+    setProfilePinSaving(true);
+    try {
+      const res = await fetch(`/api/students/${profileModal.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ pin: profileNewPin.trim() }),
+      });
+      if (res.ok) {
+        setProfileNewPin('');
+        alert(`PIN für "${profileModal.name}" erfolgreich geändert`);
+      } else {
+        const data = await res.json();
+        alert('Fehler: ' + (data.error || 'Unbekannt'));
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setProfilePinSaving(false);
+    }
+  };
+
+  const handleProfileSaveSchedule = async () => {
+    if (!profileModal) return;
+    setProfileSchedSaving(true);
+    try {
+      const res = await fetch('/api/lesson-schedules', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: profileModal.id,
+          day_of_week: profileSchedDay,
+          start_time: profileSchedTime,
+          duration_minutes: profileSchedDuration,
+        }),
+      });
+      if (res.ok) {
+        fetchData();
+        const updated = schedules.find((x: any) => x.student_id === profileModal.id);
+        setProfileSchedule(updated || { day_of_week: profileSchedDay, start_time: profileSchedTime, duration_minutes: profileSchedDuration });
+      } else {
+        const d = await res.json();
+        alert('Fehler: ' + (d.error || res.status));
+      }
+    } catch {
+      alert('Netzwerkfehler');
+    } finally {
+      setProfileSchedSaving(false);
+    }
+  };
+
+  const handleProfileDeleteSchedule = async () => {
+    if (!profileModal || !confirm('Grundstunde löschen?')) return;
+    await fetch(`/api/lesson-schedules/${profileModal.id}`, { method: 'DELETE', credentials: 'include' });
+    setProfileSchedule(null);
+    fetchData();
+  };
+
+  const handleAddPrepOption = async () => {
+    if (!profileModal || !newPrepLabel.trim()) return;
+    setPrepOptionSaving(true);
+    try {
+      const res = await fetch(`/api/students/${profileModal.id}/prep-options`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ label: newPrepLabel.trim() }),
+      });
+      if (res.ok) {
+        const opt = await res.json();
+        setProfilePrepOptions((prev) => [...prev, opt]);
+        setNewPrepLabel('');
+      } else {
+        alert('Fehler beim Hinzufügen');
+      }
+    } catch { alert('Netzwerkfehler'); }
+    finally { setPrepOptionSaving(false); }
+  };
+
+  const handleRenamePrepOption = async () => {
+    if (!profileModal || !editingPrepOption || !editingPrepOption.label.trim()) return;
+    try {
+      const res = await fetch(`/api/students/${profileModal.id}/prep-options/${editingPrepOption.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ label: editingPrepOption.label.trim() }),
+      });
+      if (res.ok) {
+        setProfilePrepOptions((prev) =>
+          prev.map((o) => o.id === editingPrepOption.id ? { ...o, label: editingPrepOption.label.trim() } : o)
+        );
+        setEditingPrepOption(null);
+      } else {
+        alert('Fehler beim Umbenennen');
+      }
+    } catch { alert('Netzwerkfehler'); }
+  };
+
+  const handleDeletePrepOption = async (optionId: number) => {
+    if (!profileModal) return;
+    try {
+      const res = await fetch(`/api/students/${profileModal.id}/prep-options/${optionId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setProfilePrepOptions((prev) => prev.filter((o) => o.id !== optionId));
+      } else {
+        alert('Fehler beim Löschen');
+      }
+    } catch { alert('Netzwerkfehler'); }
   };
 
   // Lädt Todo-Counts für alle Schüler (für Badge in Schülerliste)
@@ -991,22 +1164,10 @@ export default function TeacherDashboard() {
         {/* Icon-Tab-Leiste */}
         <div className="mb-8 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <GlassIconButton
-              emoji="📤"
-              label="Quiz hochladen"
-              isActive={openSection === 'upload'}
-              onClick={() => toggleSection('upload')}
-            />
-            <GlassIconButton
-              emoji="📝"
-              label="Quizzes verwalten"
-              isActive={openSection === 'manage-quizzes'}
-              onClick={() => toggleSection('manage-quizzes')}
-            />
-            <GlassIconButton
-              emoji="📊"
-              label="Ergebnisse anzeigen"
-              isActive={openSection === 'results'}
-              onClick={() => toggleSection('results')}
+              emoji="🎓"
+              label="Quizze"
+              isActive={openSection === 'quizze'}
+              onClick={() => toggleSection('quizze')}
             />
             <GlassIconButton
               emoji="👥"
@@ -1031,7 +1192,7 @@ export default function TeacherDashboard() {
         {/* Content Area */}
         <div className="space-y-8">
           <AnimatePresence>
-            {openSection === 'upload' && (
+            {openSection === 'quizze' && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
@@ -1040,169 +1201,177 @@ export default function TeacherDashboard() {
                 style={{ overflow: "hidden", background: '#708DC7' }}
                 className="rounded-2xl shadow-2xl p-6"
               >
-              <h2 className="text-2xl font-bold mb-6 text-white">📤 Quiz hochladen</h2>
-              <form onSubmit={handleFileUpload} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quiz-Titel
-                  </label>
-                  <input
-                    type="text"
-                    value={quizTitle}
-                    onChange={(e) => setQuizTitle(e.target.value)}
-                    placeholder="z.B. Mathematik - Kapitel 3"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    HTML-Datei auswählen
-                  </label>
-                  <input
-                    type="file"
-                    accept=".html,.htm"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    HTML-Datei mit eingebettetem &lt;script id="quiz-data" type="application/json"&gt; Block.
-                    Unterstützt LaTeX (\( … \) und $$ … $$) für schöne Mathe-Formeln.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Für Schüler (optional, Mehrfachauswahl)
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {students.map((s) => {
-                      const selected = selectedStudents.includes(String(s.id));
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() =>
-                            setSelectedStudents((prev) =>
-                              selected
-                                ? prev.filter((id) => id !== String(s.id))
-                                : [...prev, String(s.id)]
-                            )
-                          }
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
-                            selected
-                              ? 'bg-[#032e65] text-white border-[#032e65]'
-                              : 'bg-white text-gray-700 border-gray-300 hover:border-[#032e65]'
-                          }`}
-                        >
-                          {s.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {selectedStudents.length === 0 && (
-                    <p className="text-xs text-gray-500 mt-1">Kein Schüler ausgewählt → für alle sichtbar</p>
-                  )}
-                </div>
-
+              {/* Sub-Tab-Navigation */}
+              <div className="flex gap-3 mb-6">
                 <button
-                  type="submit"
-                  disabled={uploading || !file || !quizTitle}
-                  className="w-full bg-[#032e65] text-white py-2 rounded-lg font-medium hover:bg-[#021d40] transition disabled:opacity-50"
+                  onClick={() => setQuizSubTab('manage')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
+                    quizSubTab === 'manage'
+                      ? 'bg-white text-[#032e65] shadow'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
                 >
-                  {uploading ? 'Wird hochgeladen...' : 'Quiz hochladen'}
+                  📝 Quizze verwalten
                 </button>
-              </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {openSection === 'manage-quizzes' && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden", background: '#708DC7' }}
-                className="rounded-2xl shadow-2xl p-6"
-              >
-              <h2 className="text-2xl font-bold mb-6 text-white">📝 Quizzes verwalten</h2>
-              {quizzes.length === 0 ? (
-                <p className="text-center py-8 text-white/80">Noch keine Quizzes hochgeladen</p>
-              ) : (
-                <div className="space-y-2">
-                  {quizzes.map((q) => (
-                    <div key={q.id} className="flex items-center justify-between bg-white/15 backdrop-blur-sm border border-white/25 p-4 rounded-lg">
-                      <div>
-                        <p className="font-semibold text-white">{q.title}</p>
-                        <p className="text-xs text-white/70">
-                          {q.student_id
-                            ? `Für: ${students.find((s) => s.id === q.student_id)?.name ?? 'Kein Schüler zugeordnet'}`
-                            : 'Für alle Schüler'} • {new Date(q.uploaded_at).toLocaleDateString('de-DE')}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteQuiz(q.id, q.title)}
-                        className="ml-4 px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition"
-                      >
-                        Löschen
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {openSection === 'results' && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                style={{ overflow: "hidden", background: '#708DC7' }}
-                className="rounded-2xl shadow-2xl p-6"
-              >
-              <h2 className="text-2xl font-bold mb-6 text-white">📊 Ergebnisse</h2>
-              <p className="text-sm text-white/80 mb-3">Zeile anklicken für Einzelauswertung</p>
-              <div className="overflow-x-auto rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
-                <table className="w-full text-sm">
-                  <thead className="bg-white/20 border-b border-white/30">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-semibold text-white">Schüler</th>
-                      <th className="px-4 py-2 text-left font-semibold text-white">Quiz</th>
-                      <th className="px-4 py-2 text-left font-semibold text-white">Punktzahl</th>
-                      <th className="px-4 py-2 text-left font-semibold text-white">Datum</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <tr
-                        key={r.id}
-                        className="border-b border-white/15 hover:bg-white/15 cursor-pointer transition"
-                        onClick={() => fetchResultDetail(r.id)}
-                      >
-                        <td className="px-4 py-2 text-white">{r.name}</td>
-                        <td className="px-4 py-2 text-white">{r.title}</td>
-                        <td className="px-4 py-2 text-green-200 font-semibold">
-                          {Number(r.score).toFixed(1)}%
-                        </td>
-                        <td className="px-4 py-2 text-white/80">
-                          {new Date(r.completed_at).toLocaleDateString('de-DE')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {results.length === 0 && (
-                  <p className="text-center py-8 text-white/80">Noch keine Ergebnisse</p>
-                )}
+                <button
+                  onClick={() => setQuizSubTab('results')}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
+                    quizSubTab === 'results'
+                      ? 'bg-white text-[#032e65] shadow'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  📊 Ergebnisse anzeigen
+                </button>
               </div>
+
+              {/* Quizze verwalten */}
+              {quizSubTab === 'manage' && (
+                <>
+                  <h2 className="text-2xl font-bold mb-6 text-white">📤 Quiz hochladen</h2>
+                  <form onSubmit={handleFileUpload} className="space-y-4 mb-8">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Quiz-Titel
+                      </label>
+                      <input
+                        type="text"
+                        value={quizTitle}
+                        onChange={(e) => setQuizTitle(e.target.value)}
+                        placeholder="z.B. Mathematik - Kapitel 3"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#032e65]"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        HTML-Datei auswählen
+                      </label>
+                      <input
+                        type="file"
+                        accept=".html,.htm"
+                        onChange={(e) => setFile(e.target.files?.[0] || null)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        HTML-Datei mit eingebettetem &lt;script id="quiz-data" type="application/json"&gt; Block.
+                        Unterstützt LaTeX (\( … \) und $$ … $$) für schöne Mathe-Formeln.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Für Schüler (optional, Mehrfachauswahl)
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {students.map((s) => {
+                          const selected = selectedStudents.includes(String(s.id));
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedStudents((prev) =>
+                                  selected
+                                    ? prev.filter((id) => id !== String(s.id))
+                                    : [...prev, String(s.id)]
+                                )
+                              }
+                              className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
+                                selected
+                                  ? 'bg-[#032e65] text-white border-[#032e65]'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:border-[#032e65]'
+                              }`}
+                            >
+                              {s.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedStudents.length === 0 && (
+                        <p className="text-xs text-gray-500 mt-1">Kein Schüler ausgewählt → für alle sichtbar</p>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={uploading || !file || !quizTitle}
+                      className="w-full bg-[#032e65] text-white py-2 rounded-lg font-medium hover:bg-[#021d40] transition disabled:opacity-50"
+                    >
+                      {uploading ? 'Wird hochgeladen...' : 'Quiz hochladen'}
+                    </button>
+                  </form>
+
+                  <h2 className="text-2xl font-bold mb-4 text-white">📝 Vorhandene Quizze</h2>
+                  {quizzes.length === 0 ? (
+                    <p className="text-center py-8 text-white/80">Noch keine Quizzes hochgeladen</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {quizzes.map((q) => (
+                        <div key={q.id} className="flex items-center justify-between bg-white/15 backdrop-blur-sm border border-white/25 p-4 rounded-lg">
+                          <div>
+                            <p className="font-semibold text-white">{q.title}</p>
+                            <p className="text-xs text-white/70">
+                              {q.student_id
+                                ? `Für: ${students.find((s) => s.id === q.student_id)?.name ?? 'Kein Schüler zugeordnet'}`
+                                : 'Für alle Schüler'} • {new Date(q.uploaded_at).toLocaleDateString('de-DE')}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteQuiz(q.id, q.title)}
+                            className="ml-4 px-3 py-1 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition"
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Ergebnisse anzeigen */}
+              {quizSubTab === 'results' && (
+                <>
+                  <h2 className="text-2xl font-bold mb-6 text-white">📊 Ergebnisse</h2>
+                  <p className="text-sm text-white/80 mb-3">Zeile anklicken für Einzelauswertung</p>
+                  <div className="overflow-x-auto rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+                    <table className="w-full text-sm">
+                      <thead className="bg-white/20 border-b border-white/30">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-semibold text-white">Schüler</th>
+                          <th className="px-4 py-2 text-left font-semibold text-white">Quiz</th>
+                          <th className="px-4 py-2 text-left font-semibold text-white">Punktzahl</th>
+                          <th className="px-4 py-2 text-left font-semibold text-white">Datum</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {results.map((r) => (
+                          <tr
+                            key={r.id}
+                            className="border-b border-white/15 hover:bg-white/15 cursor-pointer transition"
+                            onClick={() => fetchResultDetail(r.id)}
+                          >
+                            <td className="px-4 py-2 text-white">{r.name}</td>
+                            <td className="px-4 py-2 text-white">{r.title}</td>
+                            <td className="px-4 py-2 text-green-200 font-semibold">
+                              {Number(r.score).toFixed(1)}%
+                            </td>
+                            <td className="px-4 py-2 text-white/80">
+                              {new Date(r.completed_at).toLocaleDateString('de-DE')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {results.length === 0 && (
+                      <p className="text-center py-8 text-white/80">Noch keine Ergebnisse</p>
+                    )}
+                  </div>
+                </>
+              )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -1256,7 +1425,7 @@ export default function TeacherDashboard() {
                     <button
                       onClick={() => openProfileModal(s)}
                       className="flex-1 text-xs bg-rose-600 text-white px-2 py-1 rounded hover:bg-rose-700 transition"
-                      title="To-Dos & Anki"
+                      title="Profil: Name, PIN, Stunde, To-Dos, Anki"
                     >
                       📋 Profil
                     </button>
@@ -1265,30 +1434,6 @@ export default function TeacherDashboard() {
                       className="flex-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
                     >
                       📎 Dateien
-                    </button>
-                    <button
-                      onClick={() => {
-                        setScheduleModal({ student: s });
-                        const existing = schedules.find((x: any) => x.student_id === s.id);
-                        setSchedDay(existing?.day_of_week ?? 1);
-                        setSchedTime(existing?.start_time ?? '15:00');
-                        setSchedDuration(existing?.duration_minutes ?? 60);
-                      }}
-                      className="flex-1 text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700 transition"
-                    >
-                      ⏰ Stunde
-                    </button>
-                    <button
-                      onClick={() => { setRenameModal({ id: s.id, name: s.name }); setNewName(s.name); }}
-                      className="flex-1 text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600 transition"
-                    >
-                      ✏️ Name
-                    </button>
-                    <button
-                      onClick={() => { setPinModal({ id: s.id, name: s.name }); setNewPin(''); }}
-                      className="flex-1 text-xs bg-[#032e65] text-white px-2 py-1 rounded hover:bg-[#021d40] transition"
-                    >
-                      PIN
                     </button>
                     <button
                       onClick={() => handleDeleteStudent(s.id, s.name)}
@@ -1472,95 +1617,148 @@ export default function TeacherDashboard() {
                     });
                   }
 
-                  if (pastLessons.length === 0) {
-                    return (
-                      <p className="text-center text-white/70 py-8">Keine vergangenen Stunden gefunden</p>
-                    );
+                  const futureLessons: any[] = [];
+                  for (let i = 0; i <= 7; i++) {
+                    const d = new Date(today);
+                    d.setDate(today.getDate() + i);
+                    const dateStr = localDateStr(d);
+                    const lessons = getAllLessonsForDate(dateStr);
+                    lessons.forEach((lesson: any) => {
+                      const lessonStart = new Date(dateStr + 'T' + (lesson.startTime || '00:00') + ':00');
+                      if (lessonStart >= now) {
+                        futureLessons.push({
+                          ...lesson,
+                          dateStr,
+                          dateLabel: d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }),
+                        });
+                      }
+                    });
                   }
+                  futureLessons.sort((a: any, b: any) =>
+                    (a.dateStr + 'T' + (a.startTime || '00:00')).localeCompare(b.dateStr + 'T' + (b.startTime || '00:00'))
+                  );
 
                   return (
-                    <div className="space-y-2">
-                      {pastLessons.map((lesson: any, idx: number) => {
-                        const key = `${lesson.studentId}-${lesson.dateStr}`;
-                        const inv = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false, invoiceNumber: '' };
-                        if (inv.dismissed) return null;
-                        const allDone = inv.created && inv.sent && inv.paid;
+                    <div>
+                      {/* Vergangene Stunden */}
+                      <h3 className="text-base font-semibold text-white/90 uppercase tracking-wide mb-3">Vergangene Stunden</h3>
+                      {pastLessons.length === 0 ? (
+                        <p className="text-center text-white/60 py-4 mb-6 rounded-xl bg-white/5 border border-white/10">Keine vergangenen Stunden in den letzten 7 Tagen</p>
+                      ) : (
+                        <div className="space-y-2 mb-8">
+                          {pastLessons.map((lesson: any, idx: number) => {
+                            const key = `${lesson.studentId}-${lesson.dateStr}`;
+                            const inv = invoiceEntries.get(key) || { created: false, sent: false, paid: false, dismissed: false, invoiceNumber: '' };
+                            if (inv.dismissed) return null;
+                            const allDone = inv.created && inv.sent && inv.paid;
 
-                        return (
-                          <div
-                            key={idx}
-                            className={`rounded-xl p-4 border-2 transition-colors ${
-                              allDone
-                                ? 'bg-green-500/25 border-green-400/60'
-                                : 'bg-red-500/20 border-red-400/50'
-                            }`}
-                          >
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                              {/* Löschen-Button — nur wenn alle 3 angehakt */}
-                              {allDone && (
-                                <button
-                                  onClick={() => handleInvoiceDelete(lesson.studentId, lesson.dateStr)}
-                                  className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-red-500/60 text-white transition"
-                                  title="Rechnung als erledigt abhaken und entfernen"
-                                >
-                                  🗑
-                                </button>
-                              )}
-                              {/* Info */}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-white">{lesson.studentName}</p>
-                                <p className="text-sm text-white/80">
-                                  {lesson.dateLabel} · {lesson.startTime} · {lesson.durationMinutes} Min.
-                                </p>
-                                {lesson.theme && (
-                                  <p className="text-xs text-white/60 mt-0.5">📚 {lesson.theme}</p>
-                                )}
-                              </div>
-
-                              {/* Checkboxen */}
-                              <div className="flex gap-2 flex-wrap items-center">
-                                {/* Rechnungsnummer */}
-                                <input
-                                  type="text"
-                                  value={inv.invoiceNumber}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setInvoiceEntries((prev) => new Map(prev).set(key, { ...inv, invoiceNumber: val }));
-                                  }}
-                                  onBlur={(e) => handleInvoiceNumberSave(lesson.studentId, lesson.dateStr, e.target.value)}
-                                  placeholder="Re.-Nr."
-                                  className="w-20 px-2 py-1.5 rounded-lg text-sm bg-white/20 border border-white/40 text-white placeholder-white/50 focus:outline-none focus:border-white/80"
-                                />
-                                {([
-                                  { field: 'created' as const, label: 'Erstellt' },
-                                  { field: 'sent' as const, label: 'Geschickt' },
-                                  { field: 'paid' as const, label: 'Bezahlt' },
-                                ]).map(({ field, label }) => {
-                                  const checked = inv[field];
-                                  return (
+                            return (
+                              <div
+                                key={idx}
+                                className={`rounded-xl p-4 border-2 transition-colors ${
+                                  allDone
+                                    ? 'bg-green-500/25 border-green-400/60'
+                                    : 'bg-red-500/20 border-red-400/50'
+                                }`}
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                  {/* Löschen-Button — nur wenn alle 3 angehakt */}
+                                  {allDone && (
                                     <button
-                                      key={field}
-                                      onClick={() => handleInvoiceToggle(lesson.studentId, lesson.dateStr, field)}
-                                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
-                                        checked
-                                          ? 'bg-green-500 border-green-400 text-white'
-                                          : 'bg-white/15 border-white/30 text-white/80 hover:bg-white/25'
-                                      }`}
+                                      onClick={() => handleInvoiceDelete(lesson.studentId, lesson.dateStr)}
+                                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-white/20 hover:bg-red-500/60 text-white transition"
+                                      title="Rechnung als erledigt abhaken und entfernen"
                                     >
-                                      <span className={`w-4 h-4 rounded border flex items-center justify-center text-xs flex-shrink-0 ${
-                                        checked ? 'bg-white border-white text-green-700' : 'border-white/50'
-                                      }`}>
-                                        {checked ? '✓' : ''}
-                                      </span>
-                                      {label}
+                                      🗑
                                     </button>
-                                  );
-                                })}
+                                  )}
+                                  {/* Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-white">{lesson.studentName}</p>
+                                    <p className="text-sm text-white/80">
+                                      {lesson.dateLabel} · {lesson.startTime} · {lesson.durationMinutes} Min.
+                                    </p>
+                                    {lesson.theme && (
+                                      <p className="text-xs text-white/60 mt-0.5">📚 {lesson.theme}</p>
+                                    )}
+                                  </div>
+
+                                  {/* Checkboxen */}
+                                  <div className="flex gap-2 flex-wrap items-center">
+                                    {/* Rechnungsnummer */}
+                                    <input
+                                      type="text"
+                                      value={inv.invoiceNumber}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setInvoiceEntries((prev) => new Map(prev).set(key, { ...inv, invoiceNumber: val }));
+                                      }}
+                                      onBlur={(e) => handleInvoiceNumberSave(lesson.studentId, lesson.dateStr, e.target.value)}
+                                      placeholder="Re.-Nr."
+                                      className="w-20 px-2 py-1.5 rounded-lg text-sm bg-white/20 border border-white/40 text-white placeholder-white/50 focus:outline-none focus:border-white/80"
+                                    />
+                                    {([
+                                      { field: 'created' as const, label: 'Erstellt' },
+                                      { field: 'sent' as const, label: 'Geschickt' },
+                                      { field: 'paid' as const, label: 'Bezahlt' },
+                                    ]).map(({ field, label }) => {
+                                      const checked = inv[field];
+                                      return (
+                                        <button
+                                          key={field}
+                                          onClick={() => handleInvoiceToggle(lesson.studentId, lesson.dateStr, field)}
+                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
+                                            checked
+                                              ? 'bg-green-500 border-green-400 text-white'
+                                              : 'bg-white/15 border-white/30 text-white/80 hover:bg-white/25'
+                                          }`}
+                                        >
+                                          <span className={`w-4 h-4 rounded border flex items-center justify-center text-xs flex-shrink-0 ${
+                                            checked ? 'bg-white border-white text-green-700' : 'border-white/50'
+                                          }`}>
+                                            {checked ? '✓' : ''}
+                                          </span>
+                                          {label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Geplante Stunden */}
+                      <h3 className="text-base font-semibold text-white/90 uppercase tracking-wide mb-3">Geplante Stunden – nächste 7 Tage</h3>
+                      {futureLessons.length === 0 ? (
+                        <p className="text-center text-white/60 py-4 rounded-xl bg-white/5 border border-white/10">Keine geplanten Stunden in den nächsten 7 Tagen</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {futureLessons.map((lesson: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="rounded-xl p-4 border-2 bg-white/8 border-white/25 opacity-80"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-white">{lesson.studentName}</p>
+                                  <p className="text-sm text-white/80">
+                                    {lesson.dateLabel} · {lesson.startTime} · {lesson.durationMinutes} Min.
+                                  </p>
+                                  {lesson.theme && (
+                                    <p className="text-xs text-white/60 mt-0.5">📚 {lesson.theme}</p>
+                                  )}
+                                </div>
+                                <span className="text-xs text-white/70 bg-white/10 border border-white/20 px-3 py-1.5 rounded-lg whitespace-nowrap">
+                                  🕐 Noch nicht stattgefunden
+                                </span>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -1712,7 +1910,169 @@ export default function TeacherDashboard() {
                   <p className="text-white text-sm text-center py-4">Lädt...</p>
                 ) : (
                   <>
-                    {/* Nächste Stunde + Vorbereitungs-Checkliste */}
+                    {/* Stammdaten: Name, PIN, Grundstunde */}
+                    <div className="mb-6 space-y-4">
+                      <h3 className="text-sm font-semibold text-white uppercase tracking-wide">Stammdaten</h3>
+
+                      {/* Name */}
+                      <div>
+                        <label className="block text-xs text-white/80 mb-1">Name</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={profileNewName}
+                            onChange={(e) => setProfileNewName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleProfileSaveName()}
+                            className="dark-bg-input flex-1 px-3 py-2 bg-white/15 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/60"
+                          />
+                          <button
+                            onClick={handleProfileSaveName}
+                            disabled={profileNameSaving || !profileNewName.trim()}
+                            className="bg-white text-[#032e65] px-3 py-2 rounded-lg font-medium hover:bg-gray-100 disabled:opacity-50 transition text-sm"
+                          >
+                            {profileNameSaving ? '...' : '💾'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* PIN */}
+                      <div>
+                        <label className="block text-xs text-white/80 mb-1">PIN ändern</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={profileNewPin}
+                            onChange={(e) => setProfileNewPin(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleProfileSavePin()}
+                            placeholder="Neuer PIN"
+                            className="dark-bg-input flex-1 px-3 py-2 bg-white/15 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/60"
+                          />
+                          <button
+                            onClick={handleProfileSavePin}
+                            disabled={profilePinSaving || !profileNewPin.trim()}
+                            className="bg-white text-[#032e65] px-3 py-2 rounded-lg font-medium hover:bg-gray-100 disabled:opacity-50 transition text-sm"
+                          >
+                            {profilePinSaving ? '...' : '💾'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Grundstunde */}
+                      <div>
+                        <label className="block text-xs text-white/80 mb-1">
+                          ⏰ Grundstunde
+                          {profileSchedule && (
+                            <span className="ml-2 text-white/60 font-normal">
+                              (aktuell: {['So','Mo','Di','Mi','Do','Fr','Sa'][profileSchedule.day_of_week]} · {profileSchedule.start_time} · {profileSchedule.duration_minutes} Min.)
+                            </span>
+                          )}
+                        </label>
+                        <div className="flex gap-2 flex-wrap">
+                          <select
+                            value={profileSchedDay}
+                            onChange={(e) => setProfileSchedDay(Number(e.target.value))}
+                            className="dark-bg-input px-2 py-2 bg-white/15 border border-white/30 rounded-lg text-white focus:outline-none focus:border-white/60 text-sm"
+                          >
+                            {['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'].map((d, i) => (
+                              <option key={i} value={i} className="text-black">{d}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="time"
+                            value={profileSchedTime}
+                            onChange={(e) => setProfileSchedTime(e.target.value)}
+                            className="dark-bg-input px-2 py-2 bg-white/15 border border-white/30 rounded-lg text-white focus:outline-none focus:border-white/60 text-sm"
+                          />
+                          <input
+                            type="number"
+                            value={profileSchedDuration}
+                            onChange={(e) => setProfileSchedDuration(Number(e.target.value))}
+                            min={15}
+                            step={15}
+                            className="dark-bg-input w-20 px-2 py-2 bg-white/15 border border-white/30 rounded-lg text-white focus:outline-none focus:border-white/60 text-sm"
+                            title="Minuten"
+                          />
+                          <button
+                            onClick={handleProfileSaveSchedule}
+                            disabled={profileSchedSaving}
+                            className="bg-white text-[#032e65] px-3 py-2 rounded-lg font-medium hover:bg-gray-100 disabled:opacity-50 transition text-sm"
+                          >
+                            {profileSchedSaving ? '...' : '💾'}
+                          </button>
+                          {profileSchedule && (
+                            <button
+                              onClick={handleProfileDeleteSchedule}
+                              className="bg-red-500/30 text-white px-3 py-2 rounded-lg hover:bg-red-500/50 transition text-sm"
+                              title="Grundstunde löschen"
+                            >
+                              🗑
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border-t border-white/30 mb-6" />
+
+                    {/* Vorbereitungs-Optionen verwalten */}
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-white uppercase tracking-wide mb-3">✓ Vorbereitungs-Aufgaben</h3>
+                      {profilePrepOptions.length === 0 && (
+                        <p className="text-xs text-white/50 mb-2 italic">Keine eigenen Optionen – Standard wird angezeigt (Anki, Arbeitsblätter, Materialien).</p>
+                      )}
+                      <div className="space-y-1 mb-3">
+                        {profilePrepOptions.map((opt) => (
+                          <div key={opt.id} className="flex items-center gap-2">
+                            {editingPrepOption?.id === opt.id ? (
+                              <>
+                                <input
+                                  type="text"
+                                  value={editingPrepOption.label}
+                                  onChange={(e) => setEditingPrepOption({ id: opt.id, label: e.target.value })}
+                                  onKeyDown={(e) => e.key === 'Enter' && handleRenamePrepOption()}
+                                  className="dark-bg-input flex-1 px-2 py-1 bg-white/15 border border-white/40 rounded text-white text-sm focus:outline-none"
+                                  autoFocus
+                                />
+                                <button onClick={handleRenamePrepOption} className="text-green-300 hover:text-green-100 text-sm px-1">✓</button>
+                                <button onClick={() => setEditingPrepOption(null)} className="text-white/50 hover:text-white text-sm px-1">✕</button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-sm text-white flex-1">{opt.label}</span>
+                                <button
+                                  onClick={() => setEditingPrepOption({ id: opt.id, label: opt.label })}
+                                  className="text-white/50 hover:text-white text-xs px-1"
+                                  title="Umbenennen"
+                                >✏</button>
+                                <button
+                                  onClick={() => handleDeletePrepOption(opt.id)}
+                                  className="text-red-400/70 hover:text-red-300 text-xs px-1"
+                                  title="Löschen"
+                                >🗑</button>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newPrepLabel}
+                          onChange={(e) => setNewPrepLabel(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddPrepOption()}
+                          placeholder="Neue Aufgabe hinzufügen..."
+                          className="dark-bg-input flex-1 px-3 py-1.5 bg-white/15 border border-white/30 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-white/60 text-sm"
+                        />
+                        <button
+                          onClick={handleAddPrepOption}
+                          disabled={prepOptionSaving || !newPrepLabel.trim()}
+                          className="bg-white text-[#032e65] px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-100 disabled:opacity-50 transition"
+                        >
+                          {prepOptionSaving ? '...' : '+ Hinzufügen'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Nächste Stunde + Vorbereitungs-Status */}
                     {profileNextLesson && (
                       <div
                         className={`rounded-xl p-4 mb-6 border-l-4 ${profileNextLesson.is_changed ? 'border-red-300' : 'border-white/50'} bg-white/10`}
@@ -1731,24 +2091,31 @@ export default function TeacherDashboard() {
                           <p className="text-sm text-white/90 mt-2"><span className="font-semibold">🎓 </span>{profileNextLesson.theme}</p>
                         )}
                         <div className="mt-3 pt-3 border-t border-white/30">
-                          <p className="text-xs font-semibold text-white/80 mb-2">✓ Vorbereitung des Schülers:</p>
-                          <ul className="space-y-1 text-sm text-white">
-                            {[
-                              { key: 'anki', label: 'Anki-Karten bearbeitet' },
-                              { key: 'worksheets', label: 'Arbeitsblätter & Tests bearbeitet' },
-                              { key: 'prepare', label: 'Materialien vorbereitet' },
-                            ].map((t) => {
+                          <p className="text-xs font-semibold text-white/80 mb-2">Vorbereitung des Schülers:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(profilePrepOptions.length > 0
+                              ? profilePrepOptions.map((o) => ({ key: String(o.id), label: o.label }))
+                              : [
+                                  { key: 'anki', label: 'Anki' },
+                                  { key: 'worksheets', label: 'Arbeitsblätter' },
+                                  { key: 'prepare', label: 'Materialien' },
+                                ]
+                            ).map((t) => {
                               const done = !!profileNextLesson.completed_tasks?.[t.key];
                               return (
-                                <li key={t.key} className="flex items-center gap-2">
-                                  <span className={`inline-flex w-4 h-4 items-center justify-center rounded border ${done ? 'bg-white text-[#032e65] border-white' : 'border-white/60'}`}>
-                                    {done ? '✓' : ''}
-                                  </span>
-                                  <span className={done ? '' : 'text-white/70'}>{t.label}</span>
-                                </li>
+                                <span
+                                  key={t.key}
+                                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                                    done
+                                      ? 'bg-green-500/80 text-white'
+                                      : 'bg-white/15 text-white/50'
+                                  }`}
+                                >
+                                  {done ? '✅' : '⬜'} {t.label}
+                                </span>
                               );
                             })}
-                          </ul>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1947,13 +2314,24 @@ export default function TeacherDashboard() {
                             </span>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteFile(f.id)}
-                          className="text-red-400 hover:text-red-600 text-sm flex-shrink-0"
-                          title="Löschen"
-                        >
-                          🗑
-                        </button>
+                        <div className="flex flex-col gap-1 flex-shrink-0">
+                          <a
+                            href={`/api/files/${f.id}/download`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-700 text-sm"
+                            title="Öffnen / Herunterladen"
+                          >
+                            📥
+                          </a>
+                          <button
+                            onClick={() => handleDeleteFile(f.id)}
+                            className="text-red-400 hover:text-red-600 text-sm"
+                            title="Löschen"
+                          >
+                            🗑
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

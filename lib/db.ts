@@ -154,6 +154,16 @@ export async function initializeDB() {
       )
     `;
 
+    // ── Student Prep Options ─────────────────────────────────────────────────
+    await sql`
+      CREATE TABLE IF NOT EXISTS student_prep_options (
+        id SERIAL PRIMARY KEY,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        label VARCHAR(255) NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      )
+    `;
+
     // ── Student To-Dos ────────────────────────────────────────────────────────
     await sql`
       CREATE TABLE IF NOT EXISTS student_todos (
@@ -551,6 +561,45 @@ export async function getAllResults() {
 
 export async function deleteResult(resultId: number) {
   await sql`DELETE FROM results WHERE id = ${resultId}`;
+}
+
+// ── Student Prep Options ─────────────────────────────────────────────────────
+
+export async function getStudentPrepOptions(studentId: number) {
+  await ensureSchema();
+  const rows = await sql`
+    SELECT * FROM student_prep_options
+    WHERE student_id = ${studentId}
+    ORDER BY sort_order ASC, id ASC
+  `;
+  return rows;
+}
+
+export async function addStudentPrepOption(studentId: number, label: string, sortOrder: number) {
+  await ensureSchema();
+  const rows = await sql`
+    INSERT INTO student_prep_options (student_id, label, sort_order)
+    VALUES (${studentId}, ${label}, ${sortOrder})
+    RETURNING *
+  `;
+  return rows[0];
+}
+
+export async function updateStudentPrepOption(id: number, studentId: number, label: string) {
+  await ensureSchema();
+  await sql`
+    UPDATE student_prep_options
+    SET label = ${label}
+    WHERE id = ${id} AND student_id = ${studentId}
+  `;
+}
+
+export async function deleteStudentPrepOption(id: number, studentId: number) {
+  await ensureSchema();
+  await sql`
+    DELETE FROM student_prep_options
+    WHERE id = ${id} AND student_id = ${studentId}
+  `;
 }
 
 // ── Student To-Dos ──────────────────────────────────────────────────────────

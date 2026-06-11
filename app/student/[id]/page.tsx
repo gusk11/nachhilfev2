@@ -106,12 +106,9 @@ export default function StudentDashboard() {
   const [detailLoading, setDetailLoading] = useState(false);
 
   const [nextLesson, setNextLesson] = useState<NextLesson | null>(null);
-  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({
-    anki: false,
-    worksheets: false,
-    prepare: false,
-  });
+  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
   const [savingTasks, setSavingTasks] = useState(false);
+  const [prepOptions, setPrepOptions] = useState<Array<{ id: number; label: string }>>([]);
 
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadName, setUploadName] = useState('');
@@ -145,7 +142,7 @@ export default function StudentDashboard() {
 
   const fetchData = async () => {
     try {
-      const [quizzesRes, resultsRes, filesRes, nextLessonRes, todosRes, ankiRes, lessonsRes] = await Promise.all([
+      const [quizzesRes, resultsRes, filesRes, nextLessonRes, todosRes, ankiRes, lessonsRes, prepRes] = await Promise.all([
         fetch(`/api/quizzes/student/${studentId}`),
         fetch('/api/results'),
         fetch(`/api/students/${studentId}/files`),
@@ -153,6 +150,7 @@ export default function StudentDashboard() {
         fetch(`/api/students/${studentId}/todos`),
         fetch(`/api/students/${studentId}/anki`),
         fetch(`/api/students/${studentId}/lessons`),
+        fetch(`/api/students/${studentId}/prep-options`),
       ]);
 
       if (!quizzesRes.ok || !resultsRes.ok) {
@@ -170,12 +168,15 @@ export default function StudentDashboard() {
           setNextLesson(nlData.next_lesson);
           if (nlData.next_lesson.completed_tasks) {
             setCompletedTasks(nlData.next_lesson.completed_tasks);
+          } else {
+            setCompletedTasks({});
           }
         }
       }
       if (todosRes.ok) setTodos(await todosRes.json());
       if (ankiRes.ok) setAnkiCreds(await ankiRes.json());
       if (lessonsRes.ok) setUpcomingLessons(await lessonsRes.json());
+      if (prepRes.ok) setPrepOptions(await prepRes.json());
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -369,35 +370,38 @@ export default function StudentDashboard() {
               </div>
             )}
             <div className="mt-4 pt-4 border-t border-white/30">
-              <p className="text-sm font-semibold text-white/80 mb-3">✓ Vorbereitung für diese Stunde:</p>
-              <div className="space-y-2">
-                {[
-                  { key: 'anki', label: 'Anki-Karten bearbeitet' },
-                  { key: 'worksheets', label: 'Arbeitsblätter & Tests bearbeitet' },
-                  { key: 'prepare', label: 'Materialien vorbereitet' },
-                ].map((t) => {
-                  const done = !!completedTasks[t.key];
-                  return (
-                    <label
-                      key={t.key}
-                      className={`flex items-center gap-3 cursor-pointer rounded-lg px-3 py-2 transition ${
-                        done
-                          ? 'bg-green-500/70 border border-green-300'
-                          : 'bg-white/10 hover:bg-white/20 border border-transparent'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={done}
-                        onChange={() => handleTaskToggle(t.key)}
-                        disabled={savingTasks}
-                        className="w-4 h-4 rounded accent-white"
-                      />
-                      <span className="text-sm text-white">{t.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
+                <p className="text-sm font-semibold text-white/80 mb-3">✓ Vorbereitung für diese Stunde:</p>
+                <div className="space-y-2">
+                  {(prepOptions.length > 0
+                    ? prepOptions.map((o) => ({ key: String(o.id), label: o.label }))
+                    : [
+                        { key: 'anki', label: 'Anki-Karten bearbeitet' },
+                        { key: 'worksheets', label: 'Arbeitsblätter & Tests bearbeitet' },
+                        { key: 'prepare', label: 'Materialien vorbereitet' },
+                      ]
+                  ).map((t) => {
+                    const done = !!completedTasks[t.key];
+                    return (
+                      <label
+                        key={t.key}
+                        className={`flex items-center gap-3 cursor-pointer rounded-lg px-3 py-2 transition ${
+                          done
+                            ? 'bg-green-500/70 border border-green-300'
+                            : 'bg-white/10 hover:bg-white/20 border border-transparent'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={done}
+                          onChange={() => handleTaskToggle(t.key)}
+                          disabled={savingTasks}
+                          className="w-4 h-4 rounded accent-white"
+                        />
+                        <span className="text-sm text-white">{t.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
             </div>
           </div>
         )}
